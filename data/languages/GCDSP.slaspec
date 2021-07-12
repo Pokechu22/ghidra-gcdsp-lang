@@ -105,12 +105,16 @@ define token xopbyte (8)
 	xop6_8 = (6, 7)
 	xop1   = (1, 1)
 	xop2   = (2, 2)
+	xop5   = (5, 5)
 	xop2_4 = (2, 3)
 
 	xar0_2 = (0, 1) # Addressing register
 	xix0_2 = (0, 1) # Index register
 	xac3_6 = (3, 5) # Either accumulator
+	xax2_4 = (2, 3) # 32-bit accumulator
 	xax4_6 = (4, 5) # 32-bit accumulator
+	xac0_2 = (0, 1) # 40-bit accumulator
+	xac3_5 = (3, 4) # 40-bit accumulator
 	xac4_6 = (4, 5) # 40-bit accumulator
 	xacm0  = (0, 0) # Either ac0.m or ac1.m
 ;
@@ -118,7 +122,8 @@ define token xopbyte (8)
 attach variables [ aar xar0_2 ] [ ar0 ar1 ar2 ar3 ];
 attach variables [ xix0_2 ] [ ix0 ix1 ix2 ix3 ];
 attach variables [ xac3_6 ] [ ax0.l ax0.h ax1.l ax1.h ac0.l ac1.l ac0.m ac1.m ]; # 3-bit field referring to a register starting at 0x18 (ax0.l)
-attach variables [ xax4_6 ] [ ax0.l ax0.h ax1.l ax1.h ]; # 2-bit field referring to a register starting at 0x18 (ax0.l)
+attach variables [ xax2_4 xax4_6 ] [ ax0.l ax0.h ax1.l ax1.h ]; # 2-bit field referring to a register starting at 0x18 (ax0.l)
+attach variables [ xac0_2 xac3_5 xac4_6 ] [ ac0.l ac1.l ac0.m ac1.m ]; # 2-bit field referring to a register starting at 0x1C (ax0.l)
 attach variables [ xacm0 ] [ ac0.m ac1.m ];
 
 macro FLAGS(result) {
@@ -345,6 +350,13 @@ ext_opp:xar0_2 is xar0_2 & xop2_4=1 & xop4_8=0 { xar0_2 = xar0_2 - 1; }
 ext_opc:"IR"   is xar0_2 & xop2_4=2 & xop4_8=0  {}
 ext_opp:xar0_2 is xar0_2 & xop2_4=2 & xop4_8=0 { xar0_2 = xar0_2 + 1; }
 
+# xar0_2 and xix0_2 are the same bits in the instruction.  The manual doesn't show xix0_2, but I've included it in the disassembly.
+ext_opc:"NR"           is xar0_2 & xop2_4=3 & xop4_8=0 & xix0_2 {}
+ext_opp:xar0_2, xix0_2 is xar0_2 & xop2_4=3 & xop4_8=0 & xix0_2 { xar0_2 = xar0_2 + xix0_2; }
+
+ext_opc:"MV"           is xac0_2 & xax2_4 & xop4_8=1 {}
+ext_opp:xax2_4, xac0_2 is xac0_2 & xax2_4 & xop4_8=1 { xax2_4 = xac0_2; }
+
 ext_opc:"L"                is xar0_2 & xop2=0 & xac3_6 & xop6_8=1 {}
 ext_opp:xac3_6, "@"^xar0_2 is xar0_2 & xop2=0 & xac3_6 & xop6_8=1 { xac3_6 = *:2 xar0_2; xar0_2 = xar0_2 + 1; }
 
@@ -385,6 +397,47 @@ ext_opp:xax4_6, xacm0 is xacm0 & xop1=0 & xop2_4=3 & xax4_6 & xop6_8=2 {
 	ar0 = ar0 + ix0;
 	ar3 = ar3 + ix3;
 }
+
+ext_opc:"S"                is xar0_2 & xop2=0 & xac3_5 & xop5=1 & xop6_8=0 {}
+ext_opp:xac3_5, "@"^xar0_2 is xar0_2 & xop2=0 & xac3_5 & xop5=1 & xop6_8=0 { *:2 xar0_2 = xac3_5; xar0_2 = xar0_2 + 1; }
+
+# xar0_2 and xix0_2 are the same bits in the instruction.  The manual doesn't show xix0_2, but I've included it in the disassembly.
+ext_opc:"SN"                       is xar0_2 & xop2=1 & xac3_5 & xop5=1 & xop6_8=0 & xix0_2 {}
+ext_opp:xac3_5, "@"^xar0_2, xix0_2 is xar0_2 & xop2=1 & xac3_5 & xop5=1 & xop6_8=0 & xix0_2 { *:2 xar0_2 = xac3_5; xar0_2 = xar0_2 + xix0_2; }
+
+ext_opc:"SL"          is xacm0 & xop1=1 & xop2_4=0 & xax4_6 & xop6_8=2 {}
+ext_opp:xax4_6, xacm0 is xacm0 & xop1=1 & xop2_4=0 & xax4_6 & xop6_8=2 {
+	xax4_6 = *:2 ar0;
+	*:2 ar3 = xacm0;
+	ar0 = ar0 + 1;
+	ar3 = ar3 + 1;
+}
+
+ext_opc:"SLN"         is xacm0 & xop1=1 & xop2_4=1 & xax4_6 & xop6_8=2 {}
+ext_opp:xax4_6, xacm0 is xacm0 & xop1=1 & xop2_4=1 & xax4_6 & xop6_8=2 {
+	xax4_6 = *:2 ar0;
+	*:2 ar3 = xacm0;
+	ar0 = ar0 + ix0;
+	ar3 = ar3 + 1;
+}
+
+ext_opc:"SLM"         is xacm0 & xop1=1 & xop2_4=2 & xax4_6 & xop6_8=2 {}
+ext_opp:xax4_6, xacm0 is xacm0 & xop1=1 & xop2_4=2 & xax4_6 & xop6_8=2 {
+	xax4_6 = *:2 ar0;
+	*:2 ar3 = xacm0;
+	ar0 = ar0 + 1;
+	ar3 = ar3 + ix3;
+}
+
+ext_opc:"SLNM"        is xacm0 & xop1=1 & xop2_4=3 & xax4_6 & xop6_8=2 {}
+ext_opp:xax4_6, xacm0 is xacm0 & xop1=1 & xop2_4=3 & xax4_6 & xop6_8=2 {
+	xax4_6 = *:2 ar0;
+	*:2 ar3 = xacm0;
+	ar0 = ar0 + ix0;
+	ar3 = ar3 + ix3;
+}
+
+# The table mentions LD[NM|M|N] and LD2[NM|M|N] extension opcodes, but they aren't in the main manual
 
 # Combine arithmetic ops and extension ops
 :^a_opc^"'"^ext_opc a_opp ":" ext_opp is a_opc & a_opp; ext_opc & ext_opp { build a_opp; build ext_opp; }
