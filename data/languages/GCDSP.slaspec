@@ -22,16 +22,26 @@ define token opbyte (16)
 	op4_8  = (4, 7)
 	op5_8  = (5, 7)
 	op6_8  = (6, 7)
+	op7_9  = (7, 8)
 	op8_16 = (8, 15)
 	op9_16 = (9, 15)
+	op10_16 = (10, 15)
 	op11_16 = (11, 15)
 
-	reg0_5 = (0, 4)
+	op0_5  = (0, 4)
 
 	ar0_2 = (0, 1)
 
 	ix2_4 = (2, 3)
 	op2_4 = (2, 3)
+
+	reg0_5 = (0, 4)
+
+	ar5_7 = (5, 6)
+	ix5_7 = (5, 6)
+
+	reg5_8 = (5, 7)
+	reg5_10 = (5, 9)
 
 	cc0_4 = (0, 3)
 
@@ -50,6 +60,7 @@ Imm6: "#"^imm6 is imm6 { export imm6; }
 
 Imm8: "#"^imm8 is imm8 { export imm8; }
 SImm8: "#"^simm8 is simm8 { export simm8; }
+Addr8: "@"^simm8 is simm8 { export *:2 simm8; }  # TODO: Is this formatted right?
 
 define token data16 (16)
    imm16  = (0,15)
@@ -61,7 +72,7 @@ Imm16: "#"^imm16 is imm16 { export imm16; }
 SImm16: "#"^simm16 is simm16 { export simm16; }
 Mem16: "@"^imm16 is imm16 { export *:2 imm16; }
 
-attach variables [ reg0_5 ] [
+attach variables [ reg0_5 reg5_10 ] [
 	ar0 ar1 ar2 ar3
 	ix0 ix1 ix2 ix3
 	r08 r09 r0A r0B
@@ -73,8 +84,10 @@ attach variables [ reg0_5 ] [
 	ac0.l ac1.l ac0.m ac1.m
 ];
 
-attach variables [ ar0_2 ] [ ar0 ar1 ar2 ar3 ];
+attach variables [ ar0_2 ar5_7 ] [ ar0 ar1 ar2 ar3 ];
 attach variables [ ix2_4 ] [ ix0 ix1 ix2 ix3 ];
+
+attach variables [ reg5_8 ] [ ar0 ar1 ar2 ar3 ix0 ix1 ix2 ix3 ]; # TODO: This is a guess
 
 attach variables [ acm8 ] [ ac0.m ac1.m ]; # Middle of 40-bit accumulators
 attach variables [ ac8_11 ] [ ax0.l ax0.h ax1.l ax1.h ac0.l ac1.l ac0.m ac1.m ]; # 3-bit field referring to a register starting at 0x18 (ax0.l)
@@ -223,3 +236,59 @@ cc: "O"  is cc0_4=0b1110 { c:1 = ((sr & 0x02) != 0); export c; }
 :ASR acm8, Imm6 is Imm6 & op6_8=0b01 & acm8 & op9_16=0b0001010 unimpl
 :LSL acm8, Imm6 is Imm6 & op6_8=0b10 & acm8 & op9_16=0b0001010 unimpl
 :ASR acm8, Imm6 is Imm6 & op6_8=0b11 & acm8 & op9_16=0b0001010 unimpl
+
+:SI Addr8, Imm16 is Addr8 & op8_16=0b00010110; Imm16 {
+	Addr8 = Imm16;
+}
+
+:CALLR reg5_8 is op0_5=0b11111 & reg5_8 & op8_16=0b00010111 {
+	# TODO: Update stack
+	call reg5_8;
+}
+:JMPR reg5_8 is op0_5=0b01111 & reg5_8 & op8_16=0b00010111 {
+	goto reg5_8;
+}
+
+:LRR  reg0_5, "@"^ar5_7 is reg0_5 & ar5_7 & op7_9=0b00 & op9_16=0b0001100 {
+	reg0_5 = *:2 ar5_7;
+	# "Perform an additional operation depending on destination register"
+}
+:LRRD reg0_5, "@"^ar5_7 is reg0_5 & ar5_7 & op7_9=0b01 & op9_16=0b0001100 {
+	reg0_5 = *:2 ar5_7;
+	ar5_7 = ar5_7 - 1;
+	# "Perform an additional operation depending on destination register"
+}
+:LRRI reg0_5, "@"^ar5_7 is reg0_5 & ar5_7 & op7_9=0b10 & op9_16=0b0001100 {
+	reg0_5 = *:2 ar5_7;
+	ar5_7 = ar5_7 + 1;
+	# "Perform an additional operation depending on destination register"
+}
+:LRRN reg0_5, "@"^ar5_7 is reg0_5 & ar5_7 & op7_9=0b11 & op9_16=0b0001100 & ix5_7 {
+	reg0_5 = *:2 ar5_7;
+	ar5_7 = ar5_7 + ix5_7;  # ar5_7 and ix5_7 are the same bits in the instruction
+	# "Perform an additional operation depending on destination register"
+}
+
+:SRR  reg0_5, "@"^ar5_7 is reg0_5 & ar5_7 & op7_9=0b00 & op9_16=0b0001101 {
+	*:2 ar5_7 = reg0_5;
+	# "Perform an additional operation depending on destination register"
+}
+:SRRD reg0_5, "@"^ar5_7 is reg0_5 & ar5_7 & op7_9=0b01 & op9_16=0b0001101 {
+	*:2 ar5_7 = reg0_5;
+	ar5_7 = ar5_7 - 1;
+	# "Perform an additional operation depending on destination register"
+}
+:SRRI reg0_5, "@"^ar5_7 is reg0_5 & ar5_7 & op7_9=0b10 & op9_16=0b0001101 {
+	*:2 ar5_7 = reg0_5;
+	ar5_7 = ar5_7 + 1;
+	# "Perform an additional operation depending on destination register"
+}
+:SRRN reg0_5, "@"^ar5_7 is reg0_5 & ar5_7 & op7_9=0b11 & op9_16=0b0001101 & ix5_7 {
+	*:2 ar5_7 = reg0_5;
+	ar5_7 = ar5_7 + ix5_7;  # ar5_7 and ix5_7 are the same bits in the instruction
+	# "Perform an additional operation depending on destination register"
+}
+
+:MRR reg5_10, reg0_5 is reg0_5 & reg5_10 & op10_16=0b000111 {
+	reg5_10 = reg0_5;
+}
