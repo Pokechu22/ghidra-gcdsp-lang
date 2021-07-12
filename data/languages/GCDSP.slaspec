@@ -63,8 +63,8 @@ SImm8: "#"^simm8 is simm8 { export simm8; }
 Mem8: "@"^simm8 is simm8 { export *:2 simm8; }  # TODO: Is this formatted right?
 
 define token data16 (16)
-   imm16  = (0,15)
-   simm16 = (0,15) signed
+	imm16  = (0,15)
+	simm16 = (0,15) signed
 ;
 
 Addr16: imm16 is imm16 { export imm16; }
@@ -85,12 +85,39 @@ attach variables [ reg0_5 reg5_10 ] [
 ];
 
 attach variables [ ar0_2 ar5_7 ] [ ar0 ar1 ar2 ar3 ];
-attach variables [ ix2_4 ] [ ix0 ix1 ix2 ix3 ];
+attach variables [ ix2_4 ix5_7 ] [ ix0 ix1 ix2 ix3 ];
 
 attach variables [ reg5_8 ] [ ar0 ar1 ar2 ar3 ix0 ix1 ix2 ix3 ]; # TODO: This is a guess
 
 attach variables [ acm8 ] [ ac0.m ac1.m ]; # Middle of 40-bit accumulators
 attach variables [ ac8_11 ] [ ax0.l ax0.h ax1.l ax1.h ac0.l ac1.l ac0.m ac1.m ]; # 3-bit field referring to a register starting at 0x18 (ax0.l)
+
+# Opbyte for arithmetic instructions
+define token aopbyte (8)
+	aop4 = (4, 7)
+	an   = (2, 3)
+	aar  = (0, 1)
+;
+
+# Opbyte for extension instructions - TODO: less horrible names
+define token xopbyte (8)
+	xop4 = (4, 7)
+	xop2 = (6, 7)
+	x1   = (1, 1)
+	x2   = (2, 2)
+	xn   = (2, 3)
+	xar  = (0, 1) # Addressing register
+	xix  = (0, 1) # Index register
+	xac  = (3, 5) # Accumulator
+	xac2 = (4, 5) # 32-bit accumulator
+	xacm = (0, 0) # Either ac0.m or ac1.m
+;
+
+attach variables [ aar xar ] [ ar0 ar1 ar2 ar3 ];
+attach variables [ xix ] [ ix0 ix1 ix2 ix3 ];
+attach variables [ xac ] [ ax0.l ax0.h ax1.l ax1.h ac0.l ac1.l ac0.m ac1.m ]; # 3-bit field referring to a register starting at 0x18 (ax0.l)
+attach variables [ xac2 ] [ ax0.l ax0.h ax1.l ax1.h ]; # 2-bit field referring to a register starting at 0x18 (ax0.l)
+attach variables [ xacm ] [ ac0.m ac1.m ];
 
 macro FLAGS(result) {
 	sr[0,1] = 0;  # TODO: Carry
@@ -263,9 +290,9 @@ cc: "O"  is cc0_4=0b1110 { c:1 = ((sr & 0x02) != 0); export c; }
 	ar5_7 = ar5_7 + 1;
 	# "Perform an additional operation depending on destination register"
 }
-:LRRN reg0_5, "@"^ar5_7 is reg0_5 & ar5_7 & op7_9=0b11 & op9_16=0b0001100 & ix5_7 {
+:LRRN reg0_5, "@"^ar5_7, ix5_7 is reg0_5 & ar5_7 & op7_9=0b11 & op9_16=0b0001100 & ix5_7 {
 	reg0_5 = *:2 ar5_7;
-	ar5_7 = ar5_7 + ix5_7;  # ar5_7 and ix5_7 are the same bits in the instruction
+	ar5_7 = ar5_7 + ix5_7;  # ar5_7 and ix5_7 are the same bits in the instruction.  I've included it in the disassembly, but it's not like that in the manual.
 	# "Perform an additional operation depending on destination register"
 }
 
@@ -283,9 +310,9 @@ cc: "O"  is cc0_4=0b1110 { c:1 = ((sr & 0x02) != 0); export c; }
 	ar5_7 = ar5_7 + 1;
 	# "Perform an additional operation depending on destination register"
 }
-:SRRN reg0_5, "@"^ar5_7 is reg0_5 & ar5_7 & op7_9=0b11 & op9_16=0b0001101 & ix5_7 {
+:SRRN reg0_5, "@"^ar5_7, ix5_7 is reg0_5 & ar5_7 & op7_9=0b11 & op9_16=0b0001101 & ix5_7 {
 	*:2 ar5_7 = reg0_5;
-	ar5_7 = ar5_7 + ix5_7;  # ar5_7 and ix5_7 are the same bits in the instruction
+	ar5_7 = ar5_7 + ix5_7;  # ar5_7 and ix5_7 are the same bits in the instruction.  I've included it in the disassembly, but it's not like that in the manual.
 	# "Perform an additional operation depending on destination register"
 }
 
@@ -299,3 +326,63 @@ cc: "O"  is cc0_4=0b1110 { c:1 = ((sr & 0x02) != 0); export c; }
 :SRS ac8_11, Mem8 is Mem8 & ac8_11 & op11_16=0b00101 {
 	Mem8 = ac8_11;
 }
+
+# Define arithmetic opcodes and opcode parameters.
+# We define them separately to match the format in the manual (OPC'EXOPC <opcode parameters> : <extended opcode parameters>).
+# It would also be possible to have regular arithmetic instructions and extension instructions treated as two instructions by Ghirda,
+# but that would have its own problems related to state.
+a_opc:"DR" is aar & an=1 & aop4=0 {}
+a_opp:aar  is aar & an=1 & aop4=0 { aar = aar - 1; }
+
+# Define extension opcodes and opcode parameters.
+# There is no extension instruction with xn=0 and xop4=0.
+
+ext_opc:"DR" is xar & xn=1 & xop4=0  {}
+ext_opp:xar  is xar & xn=1 & xop4=0 { xar = xar - 1; }
+
+ext_opc:"IR" is xar & xn=2 & xop4=0  {}
+ext_opp:xar  is xar & xn=2 & xop4=0 { xar = xar + 1; }
+
+ext_opc:"L"          is xar & x2=0 & xac & xop2=1 {}
+ext_opp:xac, "@"^xar is xar & x2=0 & xac & xop2=1 { xac = *:2 xar; xar = xar + 1; }
+
+# xar and xix are the same bits in the instruction.  The manual doesn't show xix, but I've included it in the disassembly.
+ext_opc:"LN"              is xar & xix & x2=1 & xac & xop2=1 {}
+ext_opp:xac, "@"^xar, xix is xar & xix & x2=1 & xac & xop2=1 { xac = *:2 xar; xar = xar + xix; }
+
+# 'LN and 'LS have the same encoding in the manual
+# I've assumed 01ddd1ss should instead be 10dd000s, to match the table and other 'LS variants
+ext_opc:"LS"       is xacm & x1=0 & xn=0 & xac2 & xop2=2 {}
+ext_opp:xac2, xacm is xacm & x1=0 & xn=0 & xac2 & xop2=2 {
+	xac2 = *:2 ar0;
+	*:2 ar3 = xacm;
+	ar0 = ar0 + 1;
+	ar3 = ar3 + 1;
+}
+
+ext_opc:"LSN"      is xacm & x1=0 & xn=1 & xac2 & xop2=2 {}
+ext_opp:xac2, xacm is xacm & x1=0 & xn=1 & xac2 & xop2=2 {
+	xac2 = *:2 ar0;
+	*:2 ar3 = xacm;
+	ar0 = ar0 + ix0;
+	ar3 = ar3 + 1;
+}
+
+ext_opc:"LSM"      is xacm & x1=0 & xn=2 & xac2 & xop2=2 {}
+ext_opp:xac2, xacm is xacm & x1=0 & xn=2 & xac2 & xop2=2 {
+	xac2 = *:2 ar0;
+	*:2 ar3 = xacm;
+	ar0 = ar0 + 1;
+	ar3 = ar3 + ix3;
+}
+
+ext_opc:"LSNM"     is xacm & x1=0 & xn=3 & xac2 & xop2=2 {}
+ext_opp:xac2, xacm is xacm & x1=0 & xn=3 & xac2 & xop2=2 {
+	xac2 = *:2 ar0;
+	*:2 ar3 = xacm;
+	ar0 = ar0 + ix0;
+	ar3 = ar3 + ix3;
+}
+
+# Combine arithmetic ops and extension ops
+:^a_opc^"'"^ext_opc a_opp ":" ext_opp is a_opc & a_opp; ext_opc & ext_opp { build a_opp; build ext_opp; }
