@@ -60,7 +60,7 @@ Imm6: "#"^imm6 is imm6 { export imm6; }
 
 Imm8: "#"^imm8 is imm8 { export imm8; }
 SImm8: "#"^simm8 is simm8 { export simm8; }
-Addr8: "@"^simm8 is simm8 { export *:2 simm8; }  # TODO: Is this formatted right?
+Mem8: "@"^simm8 is simm8 { export *:2 simm8; }  # TODO: Is this formatted right?
 
 define token data16 (16)
    imm16  = (0,15)
@@ -237,8 +237,8 @@ cc: "O"  is cc0_4=0b1110 { c:1 = ((sr & 0x02) != 0); export c; }
 :LSL acm8, Imm6 is Imm6 & op6_8=0b10 & acm8 & op9_16=0b0001010 unimpl
 :ASR acm8, Imm6 is Imm6 & op6_8=0b11 & acm8 & op9_16=0b0001010 unimpl
 
-:SI Addr8, Imm16 is Addr8 & op8_16=0b00010110; Imm16 {
-	Addr8 = Imm16;
+:SI Mem8, Imm16 is Mem8 & op8_16=0b00010110; Imm16 {
+	Mem8 = Imm16;
 }
 
 :CALLR reg5_8 is op0_5=0b11111 & reg5_8 & op8_16=0b00010111 {
@@ -291,4 +291,11 @@ cc: "O"  is cc0_4=0b1110 { c:1 = ((sr & 0x02) != 0); export c; }
 
 :MRR reg5_10, reg0_5 is reg0_5 & reg5_10 & op10_16=0b000111 {
 	reg5_10 = reg0_5;
+}
+
+:LRS ac8_11, Mem8 is Mem8 & ac8_11 & op11_16=0b00100 {
+	ac8_11 = Mem8;
+}
+:SRS ac8_11, Mem8 is Mem8 & ac8_11 & op11_16=0b00101 {
+	Mem8 = ac8_11;
 }
