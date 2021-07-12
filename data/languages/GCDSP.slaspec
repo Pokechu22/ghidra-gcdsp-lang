@@ -18,8 +18,10 @@ define register offset=0x38 size=2 [ ac0.l ac1.l ac0.m ac1.m ]; # 40-bit accumul
 
 define token opbyte (16)
 	op0_4  = (0, 3)
+	op3_8  = (3, 7)
 	op4_8  = (4, 7)
 	op5_8  = (5, 7)
+	op6_8  = (6, 7)
 	op8_16 = (8, 15)
 	op9_16 = (9, 15)
 	op11_16 = (11, 15)
@@ -36,9 +38,17 @@ define token opbyte (16)
 	acm8 = (8, 8)
 	ac8_11 = (8, 10)
 
+	imm3 = (0, 2)
+	imm6 = (0, 5)
+
+	imm8 = (0, 7)
 	simm8 = (0, 7) signed
 ;
 
+Imm3: "#"^imm3 is imm3 { export imm3; }
+Imm6: "#"^imm6 is imm6 { export imm6; }
+
+Imm8: "#"^imm8 is imm8 { export imm8; }
 SImm8: "#"^simm8 is simm8 { export simm8; }
 
 define token data16 (16)
@@ -194,3 +204,22 @@ cc: "O"  is cc0_4=0b1110 { c:1 = ((sr & 0x02) != 0); export c; }
 :LRIS ac8_11, SImm8 is SImm8 & ac8_11 & op11_16=0b00001 {
 	ac8_11 = SImm8;
 }
+
+:LOOPI Imm8 is Imm8 & op8_16=0b00010000 unimpl
+:BLOOPI Imm8, Addr16 is Imm8 & op8_16=0b00010001; Addr16 unimpl
+
+# op3_8 is marked as ????? in the table but shown as 0s for the instruction itself
+# TODO: Could maybe specify what the bit is with a name
+:SBSET Imm3 is Imm3 & op3_8=0 & op8_16=0b00010010 {
+	sr = sr | 1 << (6 + Imm3);
+}
+:SBCLR Imm3 is Imm3 & op3_8=0 & op8_16=0b00010011 {
+	sr = sr & ~(1 << (6 + Imm3));
+}
+
+# The manual is written such that it implies LSL/LSR and ASL/ASR are the same instruction with a 7-bit signed immediate value,
+# though it treats them as 2 pairs of instructions with a 6-bit value (allegedly somehow sign-extended for the right-shift)
+:LSL acm8, Imm6 is Imm6 & op6_8=0b00 & acm8 & op9_16=0b0001010 unimpl
+:ASR acm8, Imm6 is Imm6 & op6_8=0b01 & acm8 & op9_16=0b0001010 unimpl
+:LSL acm8, Imm6 is Imm6 & op6_8=0b10 & acm8 & op9_16=0b0001010 unimpl
+:ASR acm8, Imm6 is Imm6 & op6_8=0b11 & acm8 & op9_16=0b0001010 unimpl
