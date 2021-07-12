@@ -21,6 +21,8 @@ define token opbyte (16)
 	op4_8  = (4, 7)
 	op5_8  = (5, 7)
 	op8_16 = (8, 15)
+	op9_16 = (9, 15)
+	op11_16 = (11, 15)
 
 	reg0_5 = (0, 4)
 
@@ -30,14 +32,23 @@ define token opbyte (16)
 	op2_4 = (2, 3)
 
 	cc0_4 = (0, 3)
+
+	acm8 = (8, 8)
+	ac8_11 = (8, 10)
+
+	simm8 = (0, 7) signed
 ;
 
+SImm8: "#"^simm8 is simm8 { export simm8; }
+
 define token data16 (16)
-   imm16 = (0,15)
+   imm16  = (0,15)
+   simm16 = (0,15) signed
 ;
 
 Addr16: imm16 is imm16 { export imm16; }
 Imm16: "#"^imm16 is imm16 { export imm16; }
+SImm16: "#"^simm16 is simm16 { export simm16; }
 Mem16: "@"^imm16 is imm16 { export *:2 imm16; }
 
 attach variables [ reg0_5 ] [
@@ -54,6 +65,20 @@ attach variables [ reg0_5 ] [
 
 attach variables [ ar0_2 ] [ ar0 ar1 ar2 ar3 ];
 attach variables [ ix2_4 ] [ ix0 ix1 ix2 ix3 ];
+
+attach variables [ acm8 ] [ ac0.m ac1.m ]; # Middle of 40-bit accumulators
+attach variables [ ac8_11 ] [ ax0.l ax0.h ax1.l ax1.h ac0.l ac1.l ac0.m ac1.m ]; # 3-bit field referring to a register starting at 0x18 (ax0.l)
+
+macro FLAGS(result) {
+	sr[0,1] = 0;  # TODO: Carry
+	sr[1,1] = 0;  # TODO: Overflow
+	sr[2,1] = (result == 0);  # Zero
+	sr[3,1] = (result < 0);  # Sign
+	sr[4,1] = 0;  # TODO: Above s32
+	sr[5,1] = 0;  # TODO: Top 2 bits equal
+	sr[6,1] = 0;  # TODO: Logic zero
+	sr[7,1] = 0;  # TODO: Overflow (sticky)
+}
 
 :NOP is op0_4=0 & op4_8=0 & op8_16=0 {
 }
@@ -149,4 +174,23 @@ cc: "O"  is cc0_4=0b1110 { c:1 = ((sr & 0x02) != 0); export c; }
 :RET is cc0_4=0b1111 & op4_8=0b1101 & op8_16=2 {
 	tmp:2 = 0; # TODO: Return address
 	return [tmp];
+}
+
+:ADDI  acm8, SImm16 is op0_4=0 & op4_8=0b0000 & acm8 & op9_16=1; SImm16 unimpl
+:XORI  acm8, SImm16 is op0_4=0 & op4_8=0b0010 & acm8 & op9_16=1; SImm16 unimpl
+:ANDI  acm8, SImm16 is op0_4=0 & op4_8=0b0100 & acm8 & op9_16=1; SImm16 unimpl
+:ORI   acm8, SImm16 is op0_4=0 & op4_8=0b0110 & acm8 & op9_16=1; SImm16 unimpl
+:CMPI  acm8, SImm16 is op0_4=0 & op4_8=0b1000 & acm8 & op9_16=1; SImm16 unimpl
+:ANDCF acm8, SImm16 is op0_4=0 & op4_8=0b1010 & acm8 & op9_16=1; SImm16 unimpl
+:ANDF  acm8, SImm16 is op0_4=0 & op4_8=0b1100 & acm8 & op9_16=1; SImm16 unimpl
+
+:ILLR acm8, "@"^ar0_2 is ar0_2 & op2_4=0 & op4_8=1 & acm8 & op9_16=1 {
+	acm8 = *:2 ar0_2;
+}
+
+# "Perform an additional operation depending on destination register"
+:ADDIS acm8, SImm8 is SImm8 & acm8 & op9_16=0b0000010 unimpl
+:CMPIS acm8, SImm8 is SImm8 & acm8 & op9_16=0b0000011 unimpl
+:LRIS ac8_11, SImm8 is SImm8 & ac8_11 & op11_16=0b00001 {
+	ac8_11 = SImm8;
 }
