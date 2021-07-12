@@ -28,6 +28,8 @@ define token opbyte (16)
 
 	ix2_4 = (2, 3)
 	op2_4 = (2, 3)
+
+	cc0_4 = (0, 3)
 ;
 
 define token data16 (16)
@@ -90,4 +92,61 @@ attach variables [ ix2_4 ] [ ix0 ix1 ix2 ix3 ];
 :SR reg0_5, Mem16 is reg0_5 & op5_8=0b111 & op8_16=0; Mem16 {
 	Mem16 = reg0_5;
 	# "Perform an additional operation depending on destination register"
+}
+
+cc: "GE" is cc0_4=0b0000 unimpl
+cc: "L"  is cc0_4=0b0001 unimpl
+cc: "G"  is cc0_4=0b0010 unimpl
+cc: "LE" is cc0_4=0b0011 unimpl
+cc: "NE" is cc0_4=0b0100 { c:1 = ((sr & 0x04) == 0); export c; }
+cc: "EQ" is cc0_4=0b0101 { c:1 = ((sr & 0x04) != 0); export c; }
+cc: "NC" is cc0_4=0b0110 { c:1 = ((sr & 0x01) == 0); export c; }
+cc: "C"  is cc0_4=0b0111 { c:1 = ((sr & 0x01) != 0); export c; }
+cc: "x8" is cc0_4=0b1000 { c:1 = ((sr & 0x10) == 0); export c; } # "Below s32"
+cc: "x9" is cc0_4=0b1001 { c:1 = ((sr & 0x10) != 0); export c; } # "Above s32"
+cc: "xA" is cc0_4=0b1010 unimpl
+cc: "xB" is cc0_4=0b1011 unimpl
+cc: "NZ" is cc0_4=0b1100 { c:1 = ((sr & 0x40) != 0); export c; }
+cc: "ZR" is cc0_4=0b1111 { c:1 = ((sr & 0x40) != 0); export c; }
+cc: "O"  is cc0_4=0b1110 { c:1 = ((sr & 0x02) != 0); export c; }
+# The always variant (cc0_4=0b1111) isn't listed here, so it can be handled separately
+
+:IF^cc is cc & op8_16=2 unimpl
+# if (!cc) goto inst_next;
+
+:J^cc Addr16 is cc & op4_8=0b1001 & op8_16=2; Addr16 {
+	if (!cc) goto inst_next;
+	goto Addr16;
+}
+
+:J^cc Addr16 is cc & op4_8=0b1011 & op8_16=2; Addr16 {
+	# TODO: Update stack
+	if (!cc) goto inst_next;
+	call Addr16;
+}
+
+:RET^cc is cc & op4_8=0b1101 & op8_16=2 {
+	if (!cc) goto inst_next;
+
+	tmp:2 = 0; # TODO: Return address
+	return [tmp];
+}
+
+# Unconditional variants
+
+# Unconditionally execute the next opcode, presumably... not very useful?  Mark as unimpl so that a warning occurs
+:IF is cc0_4=0b1111 & op4_8=0b0111 & op8_16=2 unimpl
+
+:JMP Addr16 is cc0_4=0b1111 & op4_8=0b1001 & op8_16=2; Addr16 {
+	goto Addr16;
+}
+
+:CALL Addr16 is cc0_4=0b1111 & op4_8=0b1011 & op8_16=2; Addr16 {
+	# TODO: Update stack
+	call Addr16;
+}
+
+:RET is cc0_4=0b1111 & op4_8=0b1101 & op8_16=2 {
+	tmp:2 = 0; # TODO: Return address
+	return [tmp];
 }
