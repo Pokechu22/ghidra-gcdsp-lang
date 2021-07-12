@@ -1,4 +1,4 @@
-# sleigh specification file for Intel 8085
+# sleigh specification file for GameCube DSP
 
 define endian=little;
 define alignment=2;
@@ -101,23 +101,25 @@ define token aopbyte (8)
 
 # Opbyte for extension instructions - TODO: less horrible names
 define token xopbyte (8)
-	xop4 = (4, 7)
-	xop2 = (6, 7)
-	x1   = (1, 1)
-	x2   = (2, 2)
-	xn   = (2, 3)
-	xar  = (0, 1) # Addressing register
-	xix  = (0, 1) # Index register
-	xac  = (3, 5) # Accumulator
-	xac2 = (4, 5) # 32-bit accumulator
-	xacm = (0, 0) # Either ac0.m or ac1.m
+	xop4_8 = (4, 7)
+	xop6_8 = (6, 7)
+	xop1   = (1, 1)
+	xop2   = (2, 2)
+	xop2_4 = (2, 3)
+
+	xar0_2 = (0, 1) # Addressing register
+	xix0_2 = (0, 1) # Index register
+	xac3_6 = (3, 5) # Either accumulator
+	xax4_6 = (4, 5) # 32-bit accumulator
+	xac4_6 = (4, 5) # 40-bit accumulator
+	xacm0  = (0, 0) # Either ac0.m or ac1.m
 ;
 
-attach variables [ aar xar ] [ ar0 ar1 ar2 ar3 ];
-attach variables [ xix ] [ ix0 ix1 ix2 ix3 ];
-attach variables [ xac ] [ ax0.l ax0.h ax1.l ax1.h ac0.l ac1.l ac0.m ac1.m ]; # 3-bit field referring to a register starting at 0x18 (ax0.l)
-attach variables [ xac2 ] [ ax0.l ax0.h ax1.l ax1.h ]; # 2-bit field referring to a register starting at 0x18 (ax0.l)
-attach variables [ xacm ] [ ac0.m ac1.m ];
+attach variables [ aar xar0_2 ] [ ar0 ar1 ar2 ar3 ];
+attach variables [ xix0_2 ] [ ix0 ix1 ix2 ix3 ];
+attach variables [ xac3_6 ] [ ax0.l ax0.h ax1.l ax1.h ac0.l ac1.l ac0.m ac1.m ]; # 3-bit field referring to a register starting at 0x18 (ax0.l)
+attach variables [ xax4_6 ] [ ax0.l ax0.h ax1.l ax1.h ]; # 2-bit field referring to a register starting at 0x18 (ax0.l)
+attach variables [ xacm0 ] [ ac0.m ac1.m ];
 
 macro FLAGS(result) {
 	sr[0,1] = 0;  # TODO: Carry
@@ -335,51 +337,51 @@ a_opc:"DR" is aar & an=1 & aop4=0 {}
 a_opp:aar  is aar & an=1 & aop4=0 { aar = aar - 1; }
 
 # Define extension opcodes and opcode parameters.
-# There is no extension instruction with xn=0 and xop4=0.
+# There is no extension instruction with xop2_4=0 and xop4_8=0.
 
-ext_opc:"DR" is xar & xn=1 & xop4=0  {}
-ext_opp:xar  is xar & xn=1 & xop4=0 { xar = xar - 1; }
+ext_opc:"DR"   is xar0_2 & xop2_4=1 & xop4_8=0  {}
+ext_opp:xar0_2 is xar0_2 & xop2_4=1 & xop4_8=0 { xar0_2 = xar0_2 - 1; }
 
-ext_opc:"IR" is xar & xn=2 & xop4=0  {}
-ext_opp:xar  is xar & xn=2 & xop4=0 { xar = xar + 1; }
+ext_opc:"IR"   is xar0_2 & xop2_4=2 & xop4_8=0  {}
+ext_opp:xar0_2 is xar0_2 & xop2_4=2 & xop4_8=0 { xar0_2 = xar0_2 + 1; }
 
-ext_opc:"L"          is xar & x2=0 & xac & xop2=1 {}
-ext_opp:xac, "@"^xar is xar & x2=0 & xac & xop2=1 { xac = *:2 xar; xar = xar + 1; }
+ext_opc:"L"                is xar0_2 & xop2=0 & xac3_6 & xop6_8=1 {}
+ext_opp:xac3_6, "@"^xar0_2 is xar0_2 & xop2=0 & xac3_6 & xop6_8=1 { xac3_6 = *:2 xar0_2; xar0_2 = xar0_2 + 1; }
 
-# xar and xix are the same bits in the instruction.  The manual doesn't show xix, but I've included it in the disassembly.
-ext_opc:"LN"              is xar & xix & x2=1 & xac & xop2=1 {}
-ext_opp:xac, "@"^xar, xix is xar & xix & x2=1 & xac & xop2=1 { xac = *:2 xar; xar = xar + xix; }
+# xar0_2 and xix0_2 are the same bits in the instruction.  The manual doesn't show xix0_2, but I've included it in the disassembly.
+ext_opc:"LN"                       is xar0_2 & xix0_2 & xop2=1 & xac3_6 & xop6_8=1 {}
+ext_opp:xac3_6, "@"^xar0_2, xix0_2 is xar0_2 & xix0_2 & xop2=1 & xac3_6 & xop6_8=1 { xac3_6 = *:2 xar0_2; xar0_2 = xar0_2 + xix0_2; }
 
 # 'LN and 'LS have the same encoding in the manual
 # I've assumed 01ddd1ss should instead be 10dd000s, to match the table and other 'LS variants
-ext_opc:"LS"       is xacm & x1=0 & xn=0 & xac2 & xop2=2 {}
-ext_opp:xac2, xacm is xacm & x1=0 & xn=0 & xac2 & xop2=2 {
-	xac2 = *:2 ar0;
-	*:2 ar3 = xacm;
+ext_opc:"LS"          is xacm0 & xop1=0 & xop2_4=0 & xax4_6 & xop6_8=2 {}
+ext_opp:xax4_6, xacm0 is xacm0 & xop1=0 & xop2_4=0 & xax4_6 & xop6_8=2 {
+	xax4_6 = *:2 ar0;
+	*:2 ar3 = xacm0;
 	ar0 = ar0 + 1;
 	ar3 = ar3 + 1;
 }
 
-ext_opc:"LSN"      is xacm & x1=0 & xn=1 & xac2 & xop2=2 {}
-ext_opp:xac2, xacm is xacm & x1=0 & xn=1 & xac2 & xop2=2 {
-	xac2 = *:2 ar0;
-	*:2 ar3 = xacm;
+ext_opc:"LSN"         is xacm0 & xop1=0 & xop2_4=1 & xax4_6 & xop6_8=2 {}
+ext_opp:xax4_6, xacm0 is xacm0 & xop1=0 & xop2_4=1 & xax4_6 & xop6_8=2 {
+	xax4_6 = *:2 ar0;
+	*:2 ar3 = xacm0;
 	ar0 = ar0 + ix0;
 	ar3 = ar3 + 1;
 }
 
-ext_opc:"LSM"      is xacm & x1=0 & xn=2 & xac2 & xop2=2 {}
-ext_opp:xac2, xacm is xacm & x1=0 & xn=2 & xac2 & xop2=2 {
-	xac2 = *:2 ar0;
-	*:2 ar3 = xacm;
+ext_opc:"LSM"         is xacm0 & xop1=0 & xop2_4=2 & xax4_6 & xop6_8=2 {}
+ext_opp:xax4_6, xacm0 is xacm0 & xop1=0 & xop2_4=2 & xax4_6 & xop6_8=2 {
+	xax4_6 = *:2 ar0;
+	*:2 ar3 = xacm0;
 	ar0 = ar0 + 1;
 	ar3 = ar3 + ix3;
 }
 
-ext_opc:"LSNM"     is xacm & x1=0 & xn=3 & xac2 & xop2=2 {}
-ext_opp:xac2, xacm is xacm & x1=0 & xn=3 & xac2 & xop2=2 {
-	xac2 = *:2 ar0;
-	*:2 ar3 = xacm;
+ext_opc:"LSNM"        is xacm0 & xop1=0 & xop2_4=3 & xax4_6 & xop6_8=2 {}
+ext_opp:xax4_6, xacm0 is xacm0 & xop1=0 & xop2_4=3 & xax4_6 & xop6_8=2 {
+	xax4_6 = *:2 ar0;
+	*:2 ar3 = xacm0;
 	ar0 = ar0 + ix0;
 	ar3 = ar3 + ix3;
 }
