@@ -407,6 +407,12 @@ cc: "O"  is cc0_4=0b1110 { c:1 = ((sr & 0x02) != 0); export c; }
 	Mem8 = ac8_11;
 }
 
+# TODO: Not documented in the manual
+:RTI is op0_4=0b1111 & op4_8=0b1111 & op8_16=2 {
+	tmp:2 = 0; # TODO: Return address
+	return [tmp];
+}
+
 # Define arithmetic opcodes and opcode parameters.
 # We define them separately to match the format in the manual (OPC'EXOPC <opcode parameters> : <extended opcode parameters>).
 # It would also be possible to have regular arithmetic instructions and extension instructions treated as two instructions by Ghirda,
