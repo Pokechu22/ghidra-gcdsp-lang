@@ -136,6 +136,7 @@ define token aopbyte (8)
 	aaxh0 = (0, 0) # High bits of 32-bit accumulator
 	aaxh1 = (1, 1) # High bits of 32-bit accumulator
 	aaxh3 = (3, 3) # High bits of 32-bit accumulator
+	aaxh4 = (4, 4) # High bits of 32-bit accumulator
 	aaxl0 = (0, 0) # Low bits of 32-bit accumulator
 	aaxl1 = (1, 1) # Low bits of 32-bit accumulator
 	aaxl3 = (3, 3) # Low bits of 32-bit accumulator
@@ -154,7 +155,7 @@ attach variables [ aacm0_other ] [ ac1.m ac0.m ];
 attach variables [ aacf0 aacf3 ] [ ac0 ac1 ];
 attach variables [ aacf0_other ] [ ac0 ac1 ];
 attach variables [ aacs0 ] [ acs0 acs1 ];
-attach variables [ aaxh0 aaxh1 aaxh3 ] [ ax0.h ax1.h ];
+attach variables [ aaxh0 aaxh1 aaxh3 aaxh4 ] [ ax0.h ax1.h ];
 attach variables [ aaxl0 aaxl1 aaxl3 ] [ ax0.l ax1.l ];
 attach variables [ aax1_2 ] [ ax0.l ax0.h ax1.l ax1.h ]; # 2-bit field referring to a register starting at 0x18 (ax0.l)
 attach variables [ aaxf1 ] [ ax0 ax1 ];
@@ -644,7 +645,12 @@ a_opp:aax0lh4, aax1lh3, aacf0 is aacf0 & aop1_3=0b11 & aax1lh3 & aax0lh4 & aop5_
 a_opc:"MULC"       is aop0_3=0b000 & aaxh3 & aacm4 & aop5_8=0b110 {}
 a_opp:aacm4, aaxh3 is aop0_3=0b000 & aaxh3 & aacm4 & aop5_8=0b110 unimpl
 
-# 1010r001 is marked as CMP, but it's clearly not CMP
+# TODO: Not documented in the manual
+# Also, the order of the operands seems backwards from the other nearby instructions...
+a_opc:"CMPAR"      is aop0_3=0b001 & aacf3 & aaxh4 & aop5_8=0b110 {}
+a_opp:aacf3, aaxh4 is aop0_3=0b001 & aacf3 & aaxh4 & aop5_8=0b110 {
+	FLAGS(aacf3 - sext(aaxh4)); # TODO: Is this the right extension?
+}
 
 a_opc:"MULCMVZ"           is aacf0 & aop1_3=0b01 & aaxh3 & aacm4 & aop5_8=0b110 {}
 a_opp:aacm4, aaxh3, aacf0 is aacf0 & aop1_3=0b01 & aaxh3 & aacm4 & aop5_8=0b110 unimpl
