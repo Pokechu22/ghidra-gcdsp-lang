@@ -1,6 +1,6 @@
 # sleigh specification file for GameCube DSP
 
-define endian=little;
+define endian=big;
 define alignment=2;
 
 define space ram      type=ram_space      size=2 wordsize=2 default;

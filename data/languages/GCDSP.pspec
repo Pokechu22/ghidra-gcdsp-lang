@@ -2,8 +2,8 @@
 
 <processor_spec>
   <!-- <programcounter register="PC"/> -->
-  <register_data>
-    <!--
+  <!--
+    <register_data>
     <register name="CY_flag" group="Flags"/>
     <register name="P_flag" group="Flags"/>
     <register name="AC_flag" group="Flags"/>
@@ -13,8 +13,8 @@
     <register name="BC_" group="Alt"/>
     <register name="DE_" group="Alt"/>
     <register name="HL_" group="Alt"/>
-    -->
   </register_data>
+  -->
   <default_symbols>
     <!-- Exception vectors -->
     <symbol name="RST0" address="ram:0000" entry="true"/>

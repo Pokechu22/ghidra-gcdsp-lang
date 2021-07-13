@@ -2,7 +2,7 @@
 
 <language_definitions>
   <language processor="GCDSP"
-            endian="little"
+            endian="big"
             size="16"
             variant="default"
             version="1.0"
