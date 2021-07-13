@@ -627,6 +627,11 @@ a_opp:aax0lh4, aax1lh3 is aop0_3=0b000 & aax1lh3 & aax0lh4 & aop5_8=0b101 & aaxh
 
 # 1010r001 is marked as ???
 
+a_opc:"TST" is aop0_3=0b001 & aacf3 & aop4_8=0b1011 {}
+a_opp:aacf3 is aop0_3=0b001 & aacf3 & aop4_8=0b1011 {
+	FLAGS(aacf3);
+}
+
 a_opc:"MULXMVZ"               is aacf0 & aop1_3=0b01 & aax1lh3 & aax0lh4 & aop5_8=0b101 {}
 a_opp:aax0lh4, aax1lh3, aacf0 is aacf0 & aop1_3=0b01 & aax1lh3 & aax0lh4 & aop5_8=0b101 unimpl
 
