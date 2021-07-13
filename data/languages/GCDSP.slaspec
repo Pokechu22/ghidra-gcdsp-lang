@@ -252,8 +252,8 @@ cc: "x8" is cc0_4=0b1000 { c:1 = ((sr & 0x10) == 0); export c; } # "Below s32"
 cc: "x9" is cc0_4=0b1001 { c:1 = ((sr & 0x10) != 0); export c; } # "Above s32"
 cc: "xA" is cc0_4=0b1010 unimpl
 cc: "xB" is cc0_4=0b1011 unimpl
-cc: "NZ" is cc0_4=0b1100 { c:1 = ((sr & 0x40) != 0); export c; }
-cc: "ZR" is cc0_4=0b1111 { c:1 = ((sr & 0x40) != 0); export c; }
+cc: "NZ" is cc0_4=0b1100 { c:1 = ((sr & 0x40) == 0); export c; }
+cc: "ZR" is cc0_4=0b1101 { c:1 = ((sr & 0x40) != 0); export c; }
 cc: "O"  is cc0_4=0b1110 { c:1 = ((sr & 0x02) != 0); export c; }
 # The always variant (cc0_4=0b1111) isn't listed here, so it can be handled separately
 
