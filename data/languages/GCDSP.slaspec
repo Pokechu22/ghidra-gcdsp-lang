@@ -163,6 +163,7 @@ attach variables [ aax1lh0 aax1lh3 ] [ ax1.l ax1.h ];
 
 # Opbyte for extension instructions - TODO: less horrible names
 define token xopbyte (8)
+	xop0_8 = (0, 7)
 	xop4_8 = (4, 7)
 	xop6_8 = (6, 7)
 	xop1   = (1, 1)
@@ -767,3 +768,6 @@ ext_opp:xax4_6, xacm0 is xacm0 & xop1=1 & xop2_4=3 & xax4_6 & xop6_8=2 {
 
 # Combine arithmetic ops and extension ops
 :^a_opc^"'"^ext_opc a_opp ":" ext_opp is a_opc & a_opp; ext_opc & ext_opp { build a_opp; build ext_opp; }
+
+# Although the manual doesn't mention it, if the extension opcode is set to 0, it seems like it's a NOP.
+:^a_opc a_opp is a_opc & a_opp; xop0_8=0 { build a_opp; }
