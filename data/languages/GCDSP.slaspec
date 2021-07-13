@@ -111,6 +111,7 @@ attach variables [ ac8_11 ] [ ax0.l ax0.h ax1.l ax1.h ac0.l ac1.l ac0.m ac1.m ];
 # Opbyte for arithmetic instructions
 define token aopbyte (8)
 	aop4_8 = (4, 7)
+	aop5_8 = (5, 7)
 	aop2_4 = (2, 3)
 	aop1 = (1, 1)
 	aop3 = (3, 3)
@@ -118,8 +119,12 @@ define token aopbyte (8)
 	aop1_4 = (1, 3)
 	aop1_3 = (1, 2)
 
+	aacl0 = (0, 0) # Low part of 40-bit accumulator
+
 	aacm0 = (0, 0) # Middle of 40-bit accumulator
+	aacm1 = (1, 1) # Middle of 40-bit accumulator
 	aacm0_other = (0, 0) # Middle of 40-bit accumulator, backwards
+	aacm4 = (4, 4) # Middle of 40-bit accumulator
 
 	aacf0 = (0, 0) # Full 40 bits of an accumulator
 	aacf0_other = (0, 0) # Full 40 bits of an accumulator, backwards
@@ -130,21 +135,31 @@ define token aopbyte (8)
 	aaxh0 = (0, 0) # High bits of 32-bit accumulator
 	aaxh1 = (1, 1) # High bits of 32-bit accumulator
 	aaxh3 = (3, 3) # High bits of 32-bit accumulator
+	aaxl0 = (0, 0) # Low bits of 32-bit accumulator
 	aaxl1 = (1, 1) # Low bits of 32-bit accumulator
 	aaxl3 = (3, 3) # Low bits of 32-bit accumulator
-	aax1_2 = (1, 2) # 32-bit accumulator
 	aaxf1 = (1, 1) # Full 32 bits of an accumulator
+	aax1_2 = (1, 2) # 32-bit accumulator
+
+	aax0lh1 = (1, 1) # Either ax0.l or ax0.h
+	aax0lh4 = (4, 4) # Either ax0.l or ax0.h
+	aax1lh0 = (0, 0) # Either ax1.l or ax1.h
+	aax1lh3 = (3, 3) # Either ax1.l or ax1.h
 ;
 
-attach variables [ aacm0 ] [ ac0.m ac1.m ];
+attach variables [ aacl0 ] [ ac0.l ac1.l ];
+attach variables [ aacm0 aacm1 aacm4 ] [ ac0.m ac1.m ];
 attach variables [ aacm0_other ] [ ac1.m ac0.m ];
 attach variables [ aacf0 aacf3 ] [ ac0 ac1 ];
 attach variables [ aacf0_other ] [ ac0 ac1 ];
 attach variables [ aacs0 ] [ acs0 acs1 ];
 attach variables [ aaxh0 aaxh1 aaxh3 ] [ ax0.h ax1.h ];
-attach variables [ aaxl1 aaxl3 ] [ ax0.l ax1.l ];
+attach variables [ aaxl0 aaxl1 aaxl3 ] [ ax0.l ax1.l ];
 attach variables [ aax1_2 ] [ ax0.l ax0.h ax1.l ax1.h ]; # 2-bit field referring to a register starting at 0x18 (ax0.l)
 attach variables [ aaxf1 ] [ ax0 ax1 ];
+
+attach variables [ aax0lh1 aax0lh4 ] [ ax0.l ax0.h ];
+attach variables [ aax1lh0 aax1lh3 ] [ ax1.l ax1.h ];
 
 # Opbyte for extension instructions - TODO: less horrible names
 define token xopbyte (8)
@@ -394,6 +409,8 @@ cc: "O"  is cc0_4=0b1110 { c:1 = ((sr & 0x02) != 0); export c; }
 # We define them separately to match the format in the manual (OPC'EXOPC <opcode parameters> : <extended opcode parameters>).
 # It would also be possible to have regular arithmetic instructions and extension instructions treated as two instructions by Ghirda,
 # but that would have its own problems related to state.
+# For instructions where multiple registers are handled from a single bit (e.g. aacm0 and aacf0 below), the duplicate are included
+# in both bit patterns, even though it is only meaningful in the a_opp table, to make it easy to verify that both patterns are the same.
 a_opc:"XORR"       is aacm0 & aaxh1 & aop2_4=0 & aop4_8=0b0011 & aacf0 {}
 a_opp:aacm0, aaxh1 is aacm0 & aaxh1 & aop2_4=0 & aop4_8=0b0011 & aacf0 {
 	aacm0 = aacm0 ^ aaxh1;
@@ -561,7 +578,7 @@ a_opp:aaxh0    is aaxh0 & aop1_4=0b011 & aop4_8=0b1000 {
 # TODO: M0/M2, CLR15/SET15, SET40/16 - they aren't documented in detail
 
 # TODO: "$sr.AM bit affects multiply result"
-a_opc:"MULC"       is aop0_3=0b000 & aaxl3 & aop4_8=0b1001 & aaxh3 {}
+a_opc:"MUL"        is aop0_3=0b000 & aaxl3 & aop4_8=0b1001 & aaxh3 {}
 a_opp:aaxl3, aaxh3 is aop0_3=0b000 & aaxl3 & aop4_8=0b1001 & aaxh3 unimpl
 
 a_opc:"ASR16" is aop0_3=0b001 & aacf3 & aop4_8=0b1001 {}
@@ -578,6 +595,77 @@ a_opp:aaxl3, aaxh3, aacf0 is aacf0 & aop1_3=0b10 & aaxl3 & aop4_8=0b1001 & aaxh3
 
 a_opc:"MULMV"             is aacf0 & aop1_3=0b11 & aaxl3 & aop4_8=0b1001 & aaxh3 {}
 a_opp:aaxl3, aaxh3, aacf0 is aacf0 & aop1_3=0b11 & aaxl3 & aop4_8=0b1001 & aaxh3 unimpl
+
+a_opc:"MULX"           is aop0_3=0b000 & aax1lh3 & aax0lh4 & aop5_8=0b101 & aaxh3 {}
+a_opp:aax0lh4, aax1lh3 is aop0_3=0b000 & aax1lh3 & aax0lh4 & aop5_8=0b101 & aaxh3 unimpl
+
+# 1010r001 is marked as ???
+
+a_opc:"MULXMVZ"               is aacf0 & aop1_3=0b01 & aax1lh3 & aax0lh4 & aop5_8=0b101 {}
+a_opp:aax0lh4, aax1lh3, aacf0 is aacf0 & aop1_3=0b01 & aax1lh3 & aax0lh4 & aop5_8=0b101 unimpl
+
+a_opc:"MULXAC"                is aacf0 & aop1_3=0b10 & aax1lh3 & aax0lh4 & aop5_8=0b101 {}
+a_opp:aax0lh4, aax1lh3, aacf0 is aacf0 & aop1_3=0b10 & aax1lh3 & aax0lh4 & aop5_8=0b101 unimpl
+
+a_opc:"MULXMV"                is aacf0 & aop1_3=0b11 & aax1lh3 & aax0lh4 & aop5_8=0b101 {}
+a_opp:aax0lh4, aax1lh3, aacf0 is aacf0 & aop1_3=0b11 & aax1lh3 & aax0lh4 & aop5_8=0b101 unimpl
+
+a_opc:"MULC"       is aop0_3=0b000 & aaxh3 & aacm4 & aop5_8=0b110 {}
+a_opp:aacm4, aaxh3 is aop0_3=0b000 & aaxh3 & aacm4 & aop5_8=0b110 unimpl
+
+# 1010r001 is marked as CMP, but it's clearly not CMP
+
+a_opc:"MULCMVZ"           is aacf0 & aop1_3=0b01 & aaxh3 & aacm4 & aop5_8=0b110 {}
+a_opp:aacm4, aaxh3, aacf0 is aacf0 & aop1_3=0b01 & aaxh3 & aacm4 & aop5_8=0b110 unimpl
+
+a_opc:"MULCAC"            is aacf0 & aop1_3=0b10 & aaxh3 & aacm4 & aop5_8=0b110 {}
+a_opp:aacm4, aaxh3, aacf0 is aacf0 & aop1_3=0b10 & aaxh3 & aacm4 & aop5_8=0b110 unimpl
+
+a_opc:"MULCMV"            is aacf0 & aop1_3=0b11 & aaxh3 & aacm4 & aop5_8=0b110  {}
+a_opp:aacm4, aaxh3, aacf0 is aacf0 & aop1_3=0b11 & aaxh3 & aacm4 & aop5_8=0b110 unimpl
+
+a_opc:"MADDX"          is aax1lh0 & aax0lh1 & aop2_4=0b00 & aop4_8=0b1110 {}
+a_opp:aax0lh1, aax1lh0 is aax1lh0 & aax0lh1 & aop2_4=0b00 & aop4_8=0b1110 unimpl
+
+a_opc:"MSUBX"          is aax1lh0 & aax0lh1 & aop2_4=0b01 & aop4_8=0b1110 {}
+a_opp:aax0lh1, aax1lh0 is aax1lh0 & aax0lh1 & aop2_4=0b01 & aop4_8=0b1110 unimpl
+
+# Docs are ambiguous about if it uses acS.l or acS.m, but say to use m for MSUBC, so I assume this is a typo
+a_opc:"MADDC"      is aaxh0 & aacm1 & aop2_4=0b10 & aop4_8=0b1110 {}
+a_opp:aacm1, aaxh0 is aaxh0 & aacm1 & aop2_4=0b10 & aop4_8=0b1110 unimpl
+
+a_opc:"MSUBC"      is aaxh0 & aacm1 & aop2_4=0b11 & aop4_8=0b1110 {}
+a_opp:aacm1, aaxh0 is aaxh0 & aacm1 & aop2_4=0b11 & aop4_8=0b1110 unimpl
+
+a_opc:"LSL16" is aacf0 & aop0_3=0b000 & aop4_8=0b1111 {}
+a_opp:aacf0   is aacf0 & aop0_3=0b000 & aop4_8=0b1111 {
+	aacf0 = aacf0 << 16;
+	FLAGS(aacf0);
+}
+
+a_opc:"MADD"       is aaxl0 & aop1_4=0b001 & aop4_8=0b1111 & aaxh0 {}
+a_opp:aaxl0, aaxh0 is aaxl0 & aop1_4=0b001 & aop4_8=0b1111 & aaxh0 unimpl
+
+a_opc:"LSR16" is aacf0 & aop0_3=0b010 & aop4_8=0b1111 {}
+a_opp:aacf0   is aacf0 & aop0_3=0b010 & aop4_8=0b1111 {
+	aacf0 = aacf0 >> 16;
+	FLAGS(aacf0);
+}
+
+a_opc:"MSUB"       is aaxl0 & aop1_4=0b011 & aop4_8=0b1111 & aaxh0 {}
+a_opp:aaxl0, aaxh0 is aaxl0 & aop1_4=0b011 & aop4_8=0b1111 & aaxh0 unimpl
+
+a_opc:"ADDPAXZ"    is aacf0 & aaxf1 & aop2_4=0b10 & aop4_8=0b1111 {}
+a_opp:aacf0, aaxf1 is aacf0 & aaxf1 & aop2_4=0b10 & aop4_8=0b1111 unimpl
+
+a_opc:"CLRL" is aacl0 & aop1_4=0b110 & aop4_8=0b1111 & aacf0 {}
+a_opp:aacl0  is aacl0 & aop1_4=0b110 & aop4_8=0b1111 & aacf0 {
+	aacl0 = 0;
+	FLAGS(aacf0);
+}
+
+a_opc:"MOVPZ" is aacf0 & aop1_4=0b111 & aop4_8=0b1111 {}
+a_opp:aacf0   is aacf0 & aop1_4=0b111 & aop4_8=0b1111 unimpl
 
 # Define extension opcodes and opcode parameters.
 # There is no extension instruction with xop2_4=0 and xop4_8=0.
