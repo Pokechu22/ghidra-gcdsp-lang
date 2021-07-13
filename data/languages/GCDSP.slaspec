@@ -114,28 +114,35 @@ define token aopbyte (8)
 	aop2_4 = (2, 3)
 	aop1 = (1, 1)
 	aop3 = (3, 3)
+	aop0_3 = (0, 2)
+	aop1_4 = (1, 3)
+	aop1_3 = (1, 2)
 
 	aacm0 = (0, 0) # Middle of 40-bit accumulator
 	aacm0_other = (0, 0) # Middle of 40-bit accumulator, backwards
 
 	aacf0 = (0, 0) # Full 40 bits of an accumulator
 	aacf0_other = (0, 0) # Full 40 bits of an accumulator, backwards
+	aacf3 = (3, 3) # Full 40 bits of an accumulator
 
 	aacs0 = (0, 0) # 24 bits of a 40-bit accumulator
 
+	aaxh0 = (0, 0) # High bits of 32-bit accumulator
 	aaxh1 = (1, 1) # High bits of 32-bit accumulator
+	aaxh3 = (3, 3) # High bits of 32-bit accumulator
 	aaxl1 = (1, 1) # Low bits of 32-bit accumulator
+	aaxl3 = (3, 3) # Low bits of 32-bit accumulator
 	aax1_2 = (1, 2) # 32-bit accumulator
 	aaxf1 = (1, 1) # Full 32 bits of an accumulator
 ;
 
 attach variables [ aacm0 ] [ ac0.m ac1.m ];
 attach variables [ aacm0_other ] [ ac1.m ac0.m ];
-attach variables [ aacf0 ] [ ac0 ac1 ];
+attach variables [ aacf0 aacf3 ] [ ac0 ac1 ];
 attach variables [ aacf0_other ] [ ac0 ac1 ];
 attach variables [ aacs0 ] [ acs0 acs1 ];
-attach variables [ aaxh1 ] [ ax0.h ax1.h ];
-attach variables [ aaxl1 ] [ ax0.l ax1.l ];
+attach variables [ aaxh0 aaxh1 aaxh3 ] [ ax0.h ax1.h ];
+attach variables [ aaxl1 aaxl3 ] [ ax0.l ax1.l ];
 attach variables [ aax1_2 ] [ ax0.l ax0.h ax1.l ax1.h ]; # 2-bit field referring to a register starting at 0x18 (ax0.l)
 attach variables [ aaxf1 ] [ ax0 ax1 ];
 
@@ -520,6 +527,57 @@ a_opp:aacf0 is aacf0 & aop1=0 & aop2_4=3 & aop4_8=0b0111 {
 
 a_opc:"MOVNP" is aacf0 & aop1=1 & aop2_4=3 & aop4_8=0b0111 {}
 a_opp:aacf0   is aacf0 & aop1=1 & aop2_4=3 & aop4_8=0b0111 unimpl # TODO: (Negated) product register
+
+# A NOP that is used to specify only an extended opcode.  Bit 3 can be either 0 or 1.
+a_opc:"NX" is aop0_3=0 & aop4_8=0b1000 {}
+a_opp:""   is aop0_3=0 & aop4_8=0b1000 {}
+
+a_opc:"CLR" is aop0_3=1 & aacf3 & aop4_8=0b1000 {}
+a_opp:aacf3 is aop0_3=1 & aacf3 & aop4_8=0b1000 {
+	aacf3 = 0;
+	FLAGS(aacf3);
+}
+
+a_opc:"CMP" is aop0_3=0b010 & aop3=0 & aop4_8=0b1000 {}
+a_opp:""    is aop0_3=0b010 & aop3=0 & aop4_8=0b1000 {
+	FLAGS(ac0 - ac1);
+}
+
+# 1000 0011 is unused
+
+a_opc:"CLRP" is aop0_3=0b100 & aop3=0 & aop4_8=0b1000 {}
+a_opp:""     is aop0_3=0b100 & aop3=0 & aop4_8=0b1000 {
+	prod.l  = 0x0000;
+	prod.m1 = 0xfff0;
+	prod.h  = 0x00ff;
+	prod.m2 = 0x0010;
+}
+
+a_opc:"TSTAXH" is aaxh0 & aop1_4=0b011 & aop4_8=0b1000 {}
+a_opp:aaxh0    is aaxh0 & aop1_4=0b011 & aop4_8=0b1000 {
+	FLAGS(aaxh0);
+}
+
+# TODO: M0/M2, CLR15/SET15, SET40/16 - they aren't documented in detail
+
+# TODO: "$sr.AM bit affects multiply result"
+a_opc:"MULC"       is aop0_3=0b000 & aaxl3 & aop4_8=0b1001 & aaxh3 {}
+a_opp:aaxl3, aaxh3 is aop0_3=0b000 & aaxl3 & aop4_8=0b1001 & aaxh3 unimpl
+
+a_opc:"ASR16" is aop0_3=0b001 & aacf3 & aop4_8=0b1001 {}
+a_opp:aacf3   is aop0_3=0b001 & aacf3 & aop4_8=0b1001 {
+	aacf3 = aacf3 s>> 16;
+	FLAGS(aacf3);
+}
+
+a_opc:"MULMVZ"            is aacf0 & aop1_3=0b01 & aaxl3 & aop4_8=0b1001 & aaxh3 {}
+a_opp:aaxl3, aaxh3, aacf0 is aacf0 & aop1_3=0b01 & aaxl3 & aop4_8=0b1001 & aaxh3 unimpl
+
+a_opc:"MULAC"             is aacf0 & aop1_3=0b10 & aaxl3 & aop4_8=0b1001 & aaxh3 {}
+a_opp:aaxl3, aaxh3, aacf0 is aacf0 & aop1_3=0b10 & aaxl3 & aop4_8=0b1001 & aaxh3 unimpl
+
+a_opc:"MULMV"             is aacf0 & aop1_3=0b11 & aaxl3 & aop4_8=0b1001 & aaxh3 {}
+a_opp:aaxl3, aaxh3, aacf0 is aacf0 & aop1_3=0b11 & aaxl3 & aop4_8=0b1001 & aaxh3 unimpl
 
 # Define extension opcodes and opcode parameters.
 # There is no extension instruction with xop2_4=0 and xop4_8=0.
