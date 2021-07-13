@@ -282,12 +282,12 @@ cc: "O"  is cc0_4=0b1110 { c:1 = ((sr & 0x02) != 0); export c; }
 :IF is cc0_4=0b1111 & op4_8=0b0111 & op8_16=2 unimpl
 
 :JMP Addr16 is cc0_4=0b1111 & op4_8=0b1001 & op8_16=2; Addr16 {
-	goto Addr16;
+	goto [Addr16];
 }
 
 :CALL Addr16 is cc0_4=0b1111 & op4_8=0b1011 & op8_16=2; Addr16 {
 	# TODO: Update stack
-	call Addr16;
+	call [Addr16];
 }
 
 :RET is cc0_4=0b1111 & op4_8=0b1101 & op8_16=2 {
@@ -348,10 +348,10 @@ cc: "O"  is cc0_4=0b1110 { c:1 = ((sr & 0x02) != 0); export c; }
 
 :CALLR reg5_8 is op0_5=0b11111 & reg5_8 & op8_16=0b00010111 {
 	# TODO: Update stack
-	call reg5_8;
+	call [reg5_8];
 }
 :JMPR reg5_8 is op0_5=0b01111 & reg5_8 & op8_16=0b00010111 {
-	goto reg5_8;
+	goto [reg5_8];
 }
 
 :LRR  reg0_5, "@"^ar5_7 is reg0_5 & ar5_7 & op7_9=0b00 & op9_16=0b0001100 {
