@@ -638,8 +638,8 @@ a_opp:aacm1, aaxh0 is aaxh0 & aacm1 & aop2_4=0b10 & aop4_8=0b1110 unimpl
 a_opc:"MSUBC"      is aaxh0 & aacm1 & aop2_4=0b11 & aop4_8=0b1110 {}
 a_opp:aacm1, aaxh0 is aaxh0 & aacm1 & aop2_4=0b11 & aop4_8=0b1110 unimpl
 
-a_opc:"LSL16" is aacf0 & aop0_3=0b000 & aop4_8=0b1111 {}
-a_opp:aacf0   is aacf0 & aop0_3=0b000 & aop4_8=0b1111 {
+a_opc:"LSL16" is aacf0 & aop1_4=0b000 & aop4_8=0b1111 {}
+a_opp:aacf0   is aacf0 & aop1_4=0b000 & aop4_8=0b1111 {
 	aacf0 = aacf0 << 16;
 	FLAGS(aacf0);
 }
@@ -647,8 +647,8 @@ a_opp:aacf0   is aacf0 & aop0_3=0b000 & aop4_8=0b1111 {
 a_opc:"MADD"       is aaxl0 & aop1_4=0b001 & aop4_8=0b1111 & aaxh0 {}
 a_opp:aaxl0, aaxh0 is aaxl0 & aop1_4=0b001 & aop4_8=0b1111 & aaxh0 unimpl
 
-a_opc:"LSR16" is aacf0 & aop0_3=0b010 & aop4_8=0b1111 {}
-a_opp:aacf0   is aacf0 & aop0_3=0b010 & aop4_8=0b1111 {
+a_opc:"LSR16" is aacf0 & aop1_4=0b010 & aop4_8=0b1111 {}
+a_opp:aacf0   is aacf0 & aop1_4=0b010 & aop4_8=0b1111 {
 	aacf0 = aacf0 >> 16;
 	FLAGS(aacf0);
 }
