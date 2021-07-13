@@ -48,9 +48,10 @@
     <symbol name="DIRQ" address="ram:FFFB" /> <!-- IRQ request -->
   </default_symbols>
   <default_memory_blocks>
-    <memory_block name="iram" start_address="0x0000" length="0x1000" mode="rw" initialized="false" />
-    <memory_block name="iom" start_address="0x8000" length="0x1000" mode="r" initialized="false" />
-    <memory_block name="hw" start_address="0xff00" length="0x100" mode="rw" initialized="false" />
+    <!-- Length is in bytes, not processor words.  However, the address IS in processor words. -->
+    <memory_block name="iram" start_address="0x0000" length="0x2000" mode="rw" initialized="false" />
+    <memory_block name="iom" start_address="0x8000" length="0x2000" mode="r" initialized="false" />
+    <memory_block name="hw" start_address="0xff00" length="0x200" mode="rw" initialized="false" />
   </default_memory_blocks>
   <volatile outputop="write_volatile" inputop="read_volatile">
     <range space="ram" first="0xff00" last="0xffff"/>
