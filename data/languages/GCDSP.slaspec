@@ -110,6 +110,7 @@ attach variables [ ac8_11 ] [ ax0.l ax0.h ax1.l ax1.h ac0.l ac1.l ac0.m ac1.m ];
 
 # Opbyte for arithmetic instructions
 define token aopbyte (8)
+	aop0_8 = (0, 7)
 	aop4_8 = (4, 7)
 	aop5_8 = (5, 7)
 	aop2_4 = (2, 3)
@@ -576,7 +577,25 @@ a_opp:aaxh0    is aaxh0 & aop1_4=0b011 & aop4_8=0b1000 {
 	FLAGS(aaxh0);
 }
 
-# TODO: M0/M2, CLR15/SET15, SET40/16 - they aren't documented in detail
+# TODO: These instructions are not documented in detail in the manual.
+# These opcodes are based on Dolphin's DSPTables.cpp.
+a_opc:"M2" is aop0_8=0b10001010 {}
+a_opp:""   is aop0_8=0b10001010 unimpl
+
+a_opc:"M0" is aop0_8=0b10001011 {}
+a_opp:""   is aop0_8=0b10001011 unimpl
+
+a_opc:"CLR15" is aop0_8=0b10001100 {}
+a_opp:""      is aop0_8=0b10001100 unimpl
+
+a_opc:"SET15" is aop0_8=0b10001101 {}
+a_opp:""      is aop0_8=0b10001101 unimpl
+
+a_opc:"SET16" is aop0_8=0b10001110 {}
+a_opp:""      is aop0_8=0b10001110 unimpl
+
+a_opc:"SET40" is aop0_8=0b10001111 {}
+a_opp:""      is aop0_8=0b10001111 unimpl
 
 # TODO: "$sr.AM bit affects multiply result"
 a_opc:"MUL"        is aop0_3=0b000 & aaxl3 & aop4_8=0b1001 & aaxh3 {}
