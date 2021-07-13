@@ -257,7 +257,7 @@ cc: "ZR" is cc0_4=0b1101 { c:1 = ((sr & 0x40) != 0); export c; }
 cc: "O"  is cc0_4=0b1110 { c:1 = ((sr & 0x02) != 0); export c; }
 # The always variant (cc0_4=0b1111) isn't listed here, so it can be handled separately
 
-:IF^cc is cc & op8_16=2 unimpl
+:IF^cc is cc & op4_8=0b0111 & op8_16=2 unimpl
 # if (!cc) goto inst_next;
 
 :J^cc Addr16 is cc & op4_8=0b1001 & op8_16=2; Addr16 {
