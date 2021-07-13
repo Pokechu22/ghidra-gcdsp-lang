@@ -10,11 +10,21 @@ define register offset=0x00 size=2 [ ar0 ar1 ar2 ar3 ]; # Addressing registers
 define register offset=0x08 size=2 [ ix0 ix1 ix2 ix3 ]; # Indexing registers
 define register offset=0x10 size=2 [ r08 r09 r0A r0B ]; # Not listed with separate names
 define register offset=0x18 size=2 [ st0 st1 st2 st3 ]; # Stack-related registers
-define register offset=0x20 size=2 [ ac0.h ac1.h ]; # 40-bit accumulators
+#define register offset=0x20 size=2 [ ac0.h ac1.h ]; # 40-bit accumulators
 define register offset=0x24 size=2 [ config sr ];
 define register offset=0x28 size=2 [ prod.l prod.m1 prod.h prod.m2 ]; # Product
-define register offset=0x30 size=2 [ ax0.l ax0.h ax1.l ax1.h ]; # 32-bit accumulators
-define register offset=0x38 size=2 [ ac0.l ac1.l ac0.m ac1.m ]; # 40-bit accumulators
+#define register offset=0x30 size=2 [ ax0.l ax0.h ax1.l ax1.h ]; # 32-bit accumulators
+#define register offset=0x38 size=2 [ ac0.l ac1.l ac0.m ac1.m ]; # 40-bit accumulators
+
+# Fake versions of the accumulator registers to make emulating them reasonable
+define register offset=0x80 size=2 [ ac0.l ac0.m ac0.h ];
+define register offset=0x80 size=6 [ ac0 ];
+define register offset=0x90 size=2 [ ac1.l ac1.m ac1.h ];
+define register offset=0x90 size=6 [ ac1 ];
+define register offset=0xA0 size=2 [ ax0.l ax0.h ];
+define register offset=0xA0 size=6 [ ax0 ];
+define register offset=0xB0 size=2 [ ax1.l ax1.h ];
+define register offset=0xB0 size=6 [ ax1 ];
 
 define token opbyte (16)
 	op0_4  = (0, 3)
@@ -94,10 +104,25 @@ attach variables [ ac8_11 ] [ ax0.l ax0.h ax1.l ax1.h ac0.l ac1.l ac0.m ac1.m ];
 
 # Opbyte for arithmetic instructions
 define token aopbyte (8)
-	aop4 = (4, 7)
-	an   = (2, 3)
-	aar  = (0, 1)
+	aop4_8 = (4, 7)
+	aop2_4 = (2, 3)
+	aop1 = (1, 1)
+	aop3 = (3, 3)
+
+	aacm0 = (0, 0) # Middle of 40-bit accumulator
+	aacm0_rev = (0, 0) # Middle of 40-bit accumulator, backwards
+
+	aacf0 = (0, 0) # Full 40 bits of an accumulator
+
+	aaxh1 = (1, 1) # Top of 32-bit accumulator
+	aax1_2 = (1, 2) # 32-bit accumulator
 ;
+
+attach variables [ aacm0 ] [ ac0.m ac1.m ];
+attach variables [ aacm0_rev ] [ ac1.m ac0.m ];
+attach variables [ aacf0 ] [ ac0 ac1 ];
+attach variables [ aaxh1 ] [ ax0.h ax1.h ];
+attach variables [ aax1_2 ] [ ax0.l ax0.h ax1.l ax1.h ]; # 2-bit field referring to a register starting at 0x18 (ax0.l)
 
 # Opbyte for extension instructions - TODO: less horrible names
 define token xopbyte (8)
@@ -119,11 +144,11 @@ define token xopbyte (8)
 	xacm0  = (0, 0) # Either ac0.m or ac1.m
 ;
 
-attach variables [ aar xar0_2 ] [ ar0 ar1 ar2 ar3 ];
+attach variables [ xar0_2 ] [ ar0 ar1 ar2 ar3 ];
 attach variables [ xix0_2 ] [ ix0 ix1 ix2 ix3 ];
 attach variables [ xac3_6 ] [ ax0.l ax0.h ax1.l ax1.h ac0.l ac1.l ac0.m ac1.m ]; # 3-bit field referring to a register starting at 0x18 (ax0.l)
 attach variables [ xax2_4 xax4_6 ] [ ax0.l ax0.h ax1.l ax1.h ]; # 2-bit field referring to a register starting at 0x18 (ax0.l)
-attach variables [ xac0_2 xac3_5 xac4_6 ] [ ac0.l ac1.l ac0.m ac1.m ]; # 2-bit field referring to a register starting at 0x1C (ax0.l)
+attach variables [ xac0_2 xac3_5 xac4_6 ] [ ac0.l ac1.l ac0.m ac1.m ]; # 2-bit field referring to a register starting at 0x1C (ac0.l)
 attach variables [ xacm0 ] [ ac0.m ac1.m ];
 
 macro FLAGS(result) {
@@ -338,8 +363,35 @@ cc: "O"  is cc0_4=0b1110 { c:1 = ((sr & 0x02) != 0); export c; }
 # We define them separately to match the format in the manual (OPC'EXOPC <opcode parameters> : <extended opcode parameters>).
 # It would also be possible to have regular arithmetic instructions and extension instructions treated as two instructions by Ghirda,
 # but that would have its own problems related to state.
-a_opc:"DR" is aar & an=1 & aop4=0 {}
-a_opp:aar  is aar & an=1 & aop4=0 { aar = aar - 1; }
+a_opc:"XORR"       is aacm0 & aaxh1 & aop2_4=0 & aop4_8=0b0011 & aacf0 {}
+a_opp:aacm0, aaxh1 is aacm0 & aaxh1 & aop2_4=0 & aop4_8=0b0011 & aacf0 {
+	aacm0 = aacm0 ^ aaxh1;
+	FLAGS(aacf0);
+}
+
+a_opc:"ANDR"       is aacm0 & aaxh1 & aop2_4=1 & aop4_8=0b0011 & aacf0 {}
+a_opp:aacm0, aaxh1 is aacm0 & aaxh1 & aop2_4=1 & aop4_8=0b0011 & aacf0 {
+	aacm0 = aacm0 & aaxh1;
+	FLAGS(aacf0);
+}
+
+a_opc:"ORR"        is aacm0 & aaxh1 & aop2_4=2 & aop4_8=0b0011 & aacf0 {}
+a_opp:aacm0, aaxh1 is aacm0 & aaxh1 & aop2_4=2 & aop4_8=0b0011 & aacf0 {
+	aacm0 = aacm0 | aaxh1;
+	FLAGS(aacf0);
+}
+
+a_opc:"ANDC"           is aacm0 & aop1=0 & aop2_4=2 & aop4_8=0b0011 & aacm0_rev & aacf0 {}
+a_opp:aacm0, aacm0_rev is aacm0 & aop1=0 & aop2_4=2 & aop4_8=0b0011 & aacm0_rev & aacf0 {
+	aacm0 = aacm0 & aacm0_rev;
+	FLAGS(aacf0);
+}
+
+a_opc:"ORC"            is aacm0 & aop1=1 & aop2_4=2 & aop4_8=0b0011 & aacm0_rev & aacf0 {}
+a_opp:aacm0, aacm0_rev is aacm0 & aop1=1 & aop2_4=2 & aop4_8=0b0011 & aacm0_rev & aacf0 {
+	aacm0 = aacm0 | aacm0_rev;
+	FLAGS(aacf0);
+}
 
 # Define extension opcodes and opcode parameters.
 # There is no extension instruction with xop2_4=0 and xop4_8=0.
