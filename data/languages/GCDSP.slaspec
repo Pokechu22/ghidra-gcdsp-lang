@@ -19,8 +19,10 @@ define register offset=0x28 size=2 [ prod.l prod.m1 prod.h prod.m2 ]; # Product
 # Fake versions of the accumulator registers to make emulating them reasonable
 define register offset=0x80 size=2 [ ac0.l ac0.m ac0.h ];
 define register offset=0x80 size=6 [ ac0 ];
+define register offset=0x80 size=4 [ acs0 ]; # Short/mid accumulator, 24 bits
 define register offset=0x90 size=2 [ ac1.l ac1.m ac1.h ];
 define register offset=0x90 size=6 [ ac1 ];
+define register offset=0x90 size=4 [ acs1 ]; # Short/mid accumulator, 24 bits
 define register offset=0xA0 size=2 [ ax0.l ax0.h ];
 define register offset=0xA0 size=6 [ ax0 ];
 define register offset=0xB0 size=2 [ ax1.l ax1.h ];
@@ -115,7 +117,10 @@ define token aopbyte (8)
 	aacf0 = (0, 0) # Full 40 bits of an accumulator
 	aacf0_other = (0, 0) # Full 40 bits of an accumulator, backwards
 
+	aacs0 = (0, 0) # 24 bits of a 40-bit accumulator
+
 	aaxh1 = (1, 1) # High bits of 32-bit accumulator
+	aaxl1 = (1, 1) # Low bits of 32-bit accumulator
 	aax1_2 = (1, 2) # 32-bit accumulator
 	aaxf1 = (1, 1) # Full 32 bits of an accumulator
 ;
@@ -124,7 +129,9 @@ attach variables [ aacm0 ] [ ac0.m ac1.m ];
 attach variables [ aacm0_other ] [ ac1.m ac0.m ];
 attach variables [ aacf0 ] [ ac0 ac1 ];
 attach variables [ aacf0_other ] [ ac0 ac1 ];
+attach variables [ aacs0 ] [ acs0 acs1 ];
 attach variables [ aaxh1 ] [ ax0.h ax1.h ];
+attach variables [ aaxl1 ] [ ax0.l ax1.l ];
 attach variables [ aax1_2 ] [ ax0.l ax0.h ax1.l ax1.h ]; # 2-bit field referring to a register starting at 0x18 (ax0.l)
 attach variables [ aaxf1 ] [ ax0 ax1 ];
 
@@ -442,6 +449,7 @@ a_opp:aacf0  is aacf0 & aop1=1 & aop2_4=3 & aop4_8=0b0101 unimpl # TODO: Product
 a_opc:"MOVR"        is aacf0 & aax1_2 & aop3=0 & aop4_8=0b0110 {}
 a_opp:aacf0, aax1_2 is aacf0 & aax1_2 & aop3=0 & aop4_8=0b0110 {
 	# high bits sign-extended, middle bits based on value, low bits zeroed
+	# TODO: Use aacs0?
 	aacf0 = sext(aax1_2) << 16;
 	FLAGS(aacf0);
 }
@@ -460,6 +468,45 @@ a_opp:aacf0, aacf0_other is aacf0 & aop1=0 & aop2_4=3 & aop4_8=0b0110 & aacf0_ot
 
 a_opc:"MOVP" is aacf0 & aop1=1 & aop2_4=3 & aop4_8=0b0110 {}
 a_opp:aacf0  is aacf0 & aop1=1 & aop2_4=3 & aop4_8=0b0110 unimpl # TODO: Product register
+
+a_opc:"ADDAXL"     is aacf0 & aaxl1 & aop2_4=0 & aop4_8=0b0111 {}
+a_opp:aacf0, aaxl1 is aacf0 & aaxl1 & aop2_4=0 & aop4_8=0b0111 {
+	aacf0 = aacf0 + zext(aaxl1);  # TODO: Is this the right extension?
+	FLAGS(aacf0);
+}
+
+a_opc:"INCM" is aacs0 & aop1=0 & aop2_4=1 & aop4_8=0b0111 & aacf0 {}
+a_opp:aacs0  is aacs0 & aop1=0 & aop2_4=1 & aop4_8=0b0111 & aacf0 {
+	aacs0 = aacs0 + 1;
+	FLAGS(aacf0);
+}
+
+a_opc:"INC" is aacf0 & aop1=1 & aop2_4=1 & aop4_8=0b0111 {}
+a_opp:aacf0 is aacf0 & aop1=1 & aop2_4=1 & aop4_8=0b0111 {
+	aacf0 = aacf0 + 1;
+	FLAGS(aacf0);
+}
+
+a_opc:"DECM" is aacs0 & aop1=0 & aop2_4=2 & aop4_8=0b0111 & aacf0 {}
+a_opp:aacs0  is aacs0 & aop1=0 & aop2_4=2 & aop4_8=0b0111 & aacf0 {
+	aacs0 = aacs0 - 1;
+	FLAGS(aacf0);
+}
+
+a_opc:"DEC" is aacf0 & aop1=1 & aop2_4=2 & aop4_8=0b0111 {}
+a_opp:aacf0 is aacf0 & aop1=1 & aop2_4=2 & aop4_8=0b0111 {
+	aacf0 = aacf0 - 1;
+	FLAGS(aacf0);
+}
+
+a_opc:"NEG" is aacf0 & aop1=0 & aop2_4=3 & aop4_8=0b0111 {}
+a_opp:aacf0 is aacf0 & aop1=0 & aop2_4=3 & aop4_8=0b0111 {
+	aacf0 = -aacf0;
+	FLAGS(aacf0);
+}
+
+a_opc:"MOVNP" is aacf0 & aop1=1 & aop2_4=3 & aop4_8=0b0111 {}
+a_opp:aacf0   is aacf0 & aop1=1 & aop2_4=3 & aop4_8=0b0111 unimpl # TODO: (Negated) product register
 
 # Define extension opcodes and opcode parameters.
 # There is no extension instruction with xop2_4=0 and xop4_8=0.
