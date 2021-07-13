@@ -58,6 +58,8 @@ define token opbyte (16)
 	cc0_4 = (0, 3)
 
 	acm8 = (8, 8)
+	acf8 = (8, 8)
+	acs8 = (8, 8)
 	ac8_11 = (8, 10)
 
 	imm3 = (0, 2)
@@ -102,6 +104,8 @@ attach variables [ ix2_4 ix5_7 ] [ ix0 ix1 ix2 ix3 ];
 attach variables [ reg5_8 ] [ ar0 ar1 ar2 ar3 ix0 ix1 ix2 ix3 ]; # TODO: This is a guess
 
 attach variables [ acm8 ] [ ac0.m ac1.m ]; # Middle of 40-bit accumulators
+attach variables [ acf8 ] [ ac0 ac1 ]; # Full 40-bit accumulators
+attach variables [ acs8 ] [ acs0 acs1 ]; # 24 bits of 40-bit accumulators
 attach variables [ ac8_11 ] [ ax0.l ax0.h ax1.l ax1.h ac0.l ac1.l ac0.m ac1.m ]; # 3-bit field referring to a register starting at 0x18 (ax0.l)
 
 # Opbyte for arithmetic instructions
@@ -269,11 +273,11 @@ cc: "O"  is cc0_4=0b1110 { c:1 = ((sr & 0x02) != 0); export c; }
 	return [tmp];
 }
 
-:ADDI  acm8, SImm16 is op0_4=0 & op4_8=0b0000 & acm8 & op9_16=1; SImm16 unimpl
-:XORI  acm8, SImm16 is op0_4=0 & op4_8=0b0010 & acm8 & op9_16=1; SImm16 unimpl
-:ANDI  acm8, SImm16 is op0_4=0 & op4_8=0b0100 & acm8 & op9_16=1; SImm16 unimpl
-:ORI   acm8, SImm16 is op0_4=0 & op4_8=0b0110 & acm8 & op9_16=1; SImm16 unimpl
-:CMPI  acm8, SImm16 is op0_4=0 & op4_8=0b1000 & acm8 & op9_16=1; SImm16 unimpl
+:ADDI  acs8, SImm16 is op0_4=0 & op4_8=0b0000 & acs8 & op9_16=1 & acf8; SImm16 { acs8 = acs8 + SImm16; FLAGS(acf8); }
+:XORI  acm8, SImm16 is op0_4=0 & op4_8=0b0010 & acm8 & op9_16=1 & acf8; SImm16 { acm8 = acm8 ^ SImm16; FLAGS(acf8); }
+:ANDI  acm8, SImm16 is op0_4=0 & op4_8=0b0100 & acm8 & op9_16=1 & acf8; SImm16 { acm8 = acm8 & SImm16; FLAGS(acf8); }
+:ORI   acm8, SImm16 is op0_4=0 & op4_8=0b0110 & acm8 & op9_16=1 & acf8; SImm16 { acm8 = acm8 | SImm16; FLAGS(acf8); }
+:CMPI  acf8, SImm16 is op0_4=0 & op4_8=0b1000 & acf8 & op9_16=1; SImm16 { FLAGS(acf8 - (SImm16 << 16)); }
 :ANDCF acm8, SImm16 is op0_4=0 & op4_8=0b1010 & acm8 & op9_16=1; SImm16 unimpl
 :ANDF  acm8, SImm16 is op0_4=0 & op4_8=0b1100 & acm8 & op9_16=1; SImm16 unimpl
 
@@ -302,10 +306,19 @@ cc: "O"  is cc0_4=0b1110 { c:1 = ((sr & 0x02) != 0); export c; }
 
 # The manual is written such that it implies LSL/LSR and ASL/ASR are the same instruction with a 7-bit signed immediate value,
 # though it treats them as 2 pairs of instructions with a 6-bit value (allegedly somehow sign-extended for the right-shift)
-:LSL acm8, Imm6 is Imm6 & op6_8=0b00 & acm8 & op9_16=0b0001010 unimpl
-:ASR acm8, Imm6 is Imm6 & op6_8=0b01 & acm8 & op9_16=0b0001010 unimpl
-:LSL acm8, Imm6 is Imm6 & op6_8=0b10 & acm8 & op9_16=0b0001010 unimpl
-:ASR acm8, Imm6 is Imm6 & op6_8=0b11 & acm8 & op9_16=0b0001010 unimpl
+:LSL acf8, Imm6 is Imm6 & op6_8=0b00 & acf8 & op9_16=0b0001010 {
+	acf8 = acf8 << Imm6;
+}
+:LSR acf8, Imm6 is Imm6 & op6_8=0b01 & acf8 & op9_16=0b0001010  {
+	acf8 = acf8 >> Imm6;
+}
+:ASL acf8, Imm6 is Imm6 & op6_8=0b10 & acf8 & op9_16=0b0001010 {
+	# This doesn't do anything different, does it?
+	acf8 = acf8 << Imm6;
+}
+:ASR acf8, Imm6 is Imm6 & op6_8=0b11 & acf8 & op9_16=0b0001010 {
+	acf8 = acf8 s>> Imm6;
+}
 
 :SI Mem8, Imm16 is Mem8 & op8_16=0b00010110; Imm16 {
 	Mem8 = Imm16;
