@@ -110,19 +110,23 @@ define token aopbyte (8)
 	aop3 = (3, 3)
 
 	aacm0 = (0, 0) # Middle of 40-bit accumulator
-	aacm0_rev = (0, 0) # Middle of 40-bit accumulator, backwards
+	aacm0_other = (0, 0) # Middle of 40-bit accumulator, backwards
 
 	aacf0 = (0, 0) # Full 40 bits of an accumulator
+	aacf0_other = (0, 0) # Full 40 bits of an accumulator, backwards
 
-	aaxh1 = (1, 1) # Top of 32-bit accumulator
+	aaxh1 = (1, 1) # High bits of 32-bit accumulator
 	aax1_2 = (1, 2) # 32-bit accumulator
+	aaxf1 = (1, 1) # Full 32 bits of an accumulator
 ;
 
 attach variables [ aacm0 ] [ ac0.m ac1.m ];
-attach variables [ aacm0_rev ] [ ac1.m ac0.m ];
+attach variables [ aacm0_other ] [ ac1.m ac0.m ];
 attach variables [ aacf0 ] [ ac0 ac1 ];
+attach variables [ aacf0_other ] [ ac0 ac1 ];
 attach variables [ aaxh1 ] [ ax0.h ax1.h ];
 attach variables [ aax1_2 ] [ ax0.l ax0.h ax1.l ax1.h ]; # 2-bit field referring to a register starting at 0x18 (ax0.l)
+attach variables [ aaxf1 ] [ ax0 ax1 ];
 
 # Opbyte for extension instructions - TODO: less horrible names
 define token xopbyte (8)
@@ -155,7 +159,7 @@ macro FLAGS(result) {
 	sr[0,1] = 0;  # TODO: Carry
 	sr[1,1] = 0;  # TODO: Overflow
 	sr[2,1] = (result == 0);  # Zero
-	sr[3,1] = (result < 0);  # Sign
+	sr[3,1] = (result s< 0);  # Sign
 	sr[4,1] = 0;  # TODO: Above s32
 	sr[5,1] = 0;  # TODO: Top 2 bits equal
 	sr[6,1] = 0;  # TODO: Logic zero
@@ -381,17 +385,81 @@ a_opp:aacm0, aaxh1 is aacm0 & aaxh1 & aop2_4=2 & aop4_8=0b0011 & aacf0 {
 	FLAGS(aacf0);
 }
 
-a_opc:"ANDC"           is aacm0 & aop1=0 & aop2_4=2 & aop4_8=0b0011 & aacm0_rev & aacf0 {}
-a_opp:aacm0, aacm0_rev is aacm0 & aop1=0 & aop2_4=2 & aop4_8=0b0011 & aacm0_rev & aacf0 {
-	aacm0 = aacm0 & aacm0_rev;
+a_opc:"ANDC"             is aacm0 & aop1=0 & aop2_4=2 & aop4_8=0b0011 & aacm0_other & aacf0 {}
+a_opp:aacm0, aacm0_other is aacm0 & aop1=0 & aop2_4=2 & aop4_8=0b0011 & aacm0_other & aacf0 {
+	aacm0 = aacm0 & aacm0_other;
 	FLAGS(aacf0);
 }
 
-a_opc:"ORC"            is aacm0 & aop1=1 & aop2_4=2 & aop4_8=0b0011 & aacm0_rev & aacf0 {}
-a_opp:aacm0, aacm0_rev is aacm0 & aop1=1 & aop2_4=2 & aop4_8=0b0011 & aacm0_rev & aacf0 {
-	aacm0 = aacm0 | aacm0_rev;
+a_opc:"ORC"              is aacm0 & aop1=1 & aop2_4=2 & aop4_8=0b0011 & aacm0_other & aacf0 {}
+a_opp:aacm0, aacm0_other is aacm0 & aop1=1 & aop2_4=2 & aop4_8=0b0011 & aacm0_other & aacf0 {
+	aacm0 = aacm0 | aacm0_other;
 	FLAGS(aacf0);
 }
+
+a_opc:"ADDR"        is aacf0 & aax1_2 & aop3=0 & aop4_8=0b0100 {}
+a_opp:aacf0, aax1_2 is aacf0 & aax1_2 & aop3=0 & aop4_8=0b0100 {
+	aacf0 = aacf0 + zext(aax1_2);  # TODO: Is this the right extension?
+	FLAGS(aacf0);
+}
+
+a_opc:"ADDAX"      is aacf0 & aaxf1 & aop2_4=2 & aop4_8=0b0100 {}
+a_opp:aacf0, aaxf1 is aacf0 & aaxf1 & aop2_4=2 & aop4_8=0b0100 {
+	aacf0 = aacf0 + zext(aaxf1);  # TODO: Is this the right extension?
+	FLAGS(aacf0);
+}
+
+a_opc:"ADD"              is aacf0 & aop1=0 & aop2_4=3 & aop4_8=0b0100 & aacf0_other {}
+a_opp:aacf0, aacf0_other is aacf0 & aop1=0 & aop2_4=3 & aop4_8=0b0100 & aacf0_other {
+	aacf0 = aacf0 + aacf0_other;
+	FLAGS(aacf0);
+}
+
+a_opc:"ADDP" is aacf0 & aop1=1 & aop2_4=3 & aop4_8=0b0100 {}
+a_opp:aacf0  is aacf0 & aop1=1 & aop2_4=3 & aop4_8=0b0100 unimpl # TODO: Product register
+
+a_opc:"SUBR"        is aacf0 & aax1_2 & aop3=0 & aop4_8=0b0101 {}
+a_opp:aacf0, aax1_2 is aacf0 & aax1_2 & aop3=0 & aop4_8=0b0101 {
+	aacf0 = aacf0 - zext(aax1_2);  # TODO: Is this the right extension?
+	FLAGS(aacf0);
+}
+
+a_opc:"SUBAX"      is aacf0 & aaxf1 & aop2_4=2 & aop4_8=0b0101 {}
+a_opp:aacf0, aaxf1 is aacf0 & aaxf1 & aop2_4=2 & aop4_8=0b0101 {
+	aacf0 = aacf0 - zext(aaxf1);  # TODO: Is this the right extension?
+	FLAGS(aacf0);
+}
+
+a_opc:"SUB"              is aacf0 & aop1=0 & aop2_4=3 & aop4_8=0b0101 & aacf0_other {}
+a_opp:aacf0, aacf0_other is aacf0 & aop1=0 & aop2_4=3 & aop4_8=0b0101 & aacf0_other {
+	aacf0 = aacf0 - aacf0_other;
+	FLAGS(aacf0);
+}
+
+a_opc:"SUBP" is aacf0 & aop1=1 & aop2_4=3 & aop4_8=0b0101 {}
+a_opp:aacf0  is aacf0 & aop1=1 & aop2_4=3 & aop4_8=0b0101 unimpl # TODO: Product register
+
+a_opc:"MOVR"        is aacf0 & aax1_2 & aop3=0 & aop4_8=0b0110 {}
+a_opp:aacf0, aax1_2 is aacf0 & aax1_2 & aop3=0 & aop4_8=0b0110 {
+	# high bits sign-extended, middle bits based on value, low bits zeroed
+	aacf0 = sext(aax1_2) << 16;
+	FLAGS(aacf0);
+}
+
+a_opc:"MOVAX"      is aacf0 & aaxf1 & aop2_4=2 & aop4_8=0b0110 {}
+a_opp:aacf0, aaxf1 is aacf0 & aaxf1 & aop2_4=2 & aop4_8=0b0110 {
+	aacf0 = zext(aaxf1);  # TODO: Is this the right extension?
+	FLAGS(aacf0);
+}
+
+a_opc:"MOV"              is aacf0 & aop1=0 & aop2_4=3 & aop4_8=0b0110 & aacf0_other {}
+a_opp:aacf0, aacf0_other is aacf0 & aop1=0 & aop2_4=3 & aop4_8=0b0110 & aacf0_other {
+	aacf0 = aacf0_other;
+	FLAGS(aacf0);
+}
+
+a_opc:"MOVP" is aacf0 & aop1=1 & aop2_4=3 & aop4_8=0b0110 {}
+a_opp:aacf0  is aacf0 & aop1=1 & aop2_4=3 & aop4_8=0b0110 unimpl # TODO: Product register
 
 # Define extension opcodes and opcode parameters.
 # There is no extension instruction with xop2_4=0 and xop4_8=0.
