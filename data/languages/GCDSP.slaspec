@@ -246,6 +246,11 @@ op:"LOOP" reg0_5          is reg0_5 & op5_8=0b010 & op8_16=0 [
 	globalset(inst_next, loopaddr);
 ] {
 	st3 = reg0_5;
+
+	dest:2 = inst_next + 1;
+	if (st3 != 0) goto <post_go>;
+	goto [dest];
+	<post_go>
 }
 op:"BLOOP" reg0_5, Addr16 is reg0_5 & op5_8=0b011 & op8_16=0; Addr16 [
 	hasloop = 1;
@@ -254,6 +259,11 @@ op:"BLOOP" reg0_5, Addr16 is reg0_5 & op5_8=0b011 & op8_16=0; Addr16 [
 	globalset(Addr16, loopaddr);
 ] {
 	st3 = reg0_5;
+
+	dest:2 = zext(Addr16) + 1;
+	if (st3 != 0) goto <post_go>;
+	goto [dest];
+	<post_go>
 }
 
 op:"LRI" reg0_5, Imm16 is reg0_5 & op5_8=0b100 & op8_16=0; Imm16 {
@@ -372,6 +382,11 @@ op:"LOOPI" Imm8 is Imm8 & op8_16=0b00010000 [
 	globalset(inst_next, loopaddr);
 ] {
 	st3 = Imm8;
+
+	dest:2 = inst_next + 1;
+	if (st3 != 0) goto <post_go>;
+	goto [dest];
+	<post_go>
 }
 op:"BLOOPI" Imm8, Addr16 is Imm8 & op8_16=0b00010001; Addr16 [
 	hasloop = 1;
@@ -380,6 +395,11 @@ op:"BLOOPI" Imm8, Addr16 is Imm8 & op8_16=0b00010001; Addr16 [
 	globalset(Addr16, loopaddr);
 ] {
 	st3 = Imm8;
+
+	dest:2 = zext(Addr16) + 1;
+	if (st3 != 0) goto <post_go>;
+	goto [dest];
+	<post_go>
 }
 
 # op3_8 is marked as ????? in the table but shown as 0s for the instruction itself
