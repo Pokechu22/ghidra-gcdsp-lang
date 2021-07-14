@@ -237,7 +237,9 @@ op:"IAR" ar0_2, ix2_4 is ar0_2 & ix2_4 & op4_8=0b0001 & op8_16=0 {
 	ar0_2 = ar0_2 + ix2_4;
 }
 
-op:"HALT" is op0_4=0b0001 & op4_8=0b0010 & op8_16=0 unimpl
+op:"HALT" is op0_4=0b0001 & op4_8=0b0010 & op8_16=0 {
+	goto inst_start; # Infinite loop
+}
 
 op:"LOOP" reg0_5          is reg0_5 & op5_8=0b010 & op8_16=0 [
 	hasloop = 1;
@@ -283,25 +285,29 @@ op:"SR" reg0_5, Mem16 is reg0_5 & op5_8=0b111 & op8_16=0; Mem16 {
 	# "Perform an additional operation depending on destination register"
 }
 
-cc: "GE" is cc0_4=0b0000 unimpl
-cc: "L"  is cc0_4=0b0001 unimpl
-cc: "G"  is cc0_4=0b0010 unimpl
-cc: "LE" is cc0_4=0b0011 unimpl
+cc: "GE" is cc0_4=0b0000 { c:1 = (((sr & 0x02) == 0) == ((sr & 0x08) == 0)); export c; } # Overflow == Sign
+cc: "L"  is cc0_4=0b0001 { c:1 = (((sr & 0x02) != 0) != ((sr & 0x08) != 0)); export c; } # Overflow != Sign
+cc: "G"  is cc0_4=0b0010 { c:1 = ((((sr & 0x02) == 0) == ((sr & 0x08) == 0)) && ((sr & 0x04) == 0)); export c; } # (Overflow == Sign) && !Zero
+cc: "LE" is cc0_4=0b0011 { c:1 = ((((sr & 0x02) == 0) != ((sr & 0x08) == 0)) || ((sr & 0x04) != 0)); export c; } # (Overflow != Sign) || Zero
 cc: "NE" is cc0_4=0b0100 { c:1 = ((sr & 0x04) == 0); export c; }
 cc: "EQ" is cc0_4=0b0101 { c:1 = ((sr & 0x04) != 0); export c; }
 cc: "NC" is cc0_4=0b0110 { c:1 = ((sr & 0x01) == 0); export c; }
 cc: "C"  is cc0_4=0b0111 { c:1 = ((sr & 0x01) != 0); export c; }
 cc: "x8" is cc0_4=0b1000 { c:1 = ((sr & 0x10) == 0); export c; } # "Below s32"
 cc: "x9" is cc0_4=0b1001 { c:1 = ((sr & 0x10) != 0); export c; } # "Above s32"
-cc: "xA" is cc0_4=0b1010 unimpl
-cc: "xB" is cc0_4=0b1011 unimpl
+cc: "xA" is cc0_4=0b1010 { c:1 = ((((sr & 0x10) != 0) || ((sr & 0x20) != 0)) && ((sr & 0x04) == 0)); export c; } # Per dolphin
+cc: "xB" is cc0_4=0b1011 { c:1 = ((((sr & 0x10) == 0) && ((sr & 0x20) == 0)) || ((sr & 0x04) != 0)); export c; } # Per dolphin
 cc: "NZ" is cc0_4=0b1100 { c:1 = ((sr & 0x40) == 0); export c; }
 cc: "ZR" is cc0_4=0b1101 { c:1 = ((sr & 0x40) != 0); export c; }
 cc: "O"  is cc0_4=0b1110 { c:1 = ((sr & 0x02) != 0); export c; }
 # The always variant (cc0_4=0b1111) isn't listed here, so it can be handled separately
 
-op:"IF"^cc is cc & op4_8=0b0111 & op8_16=2 unimpl
-# if (!cc) goto inst_next;
+op:"IF"^cc is cc & op4_8=0b0111 & op8_16=2 {
+	if (!cc) goto inst_next;
+	# Use delayslot to merge the next instruction; this makes goto inst_next skip past the merged instruction
+	# (and also automatically marks the affected instruction, for free!)
+	delayslot(1);
+}
 
 op:"J"^cc Addr16 is cc & op4_8=0b1001 & op8_16=2; Addr16 {
 	if (!cc) goto inst_next;
