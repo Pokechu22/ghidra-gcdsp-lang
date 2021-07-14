@@ -50,7 +50,7 @@
   <default_memory_blocks>
     <!-- Length is in bytes, not processor words.  However, the address IS in processor words. -->
     <memory_block name="iram" start_address="0x0000" length="0x2000" mode="rw" initialized="false" />
-    <memory_block name="iom" start_address="0x8000" length="0x2000" mode="r" initialized="false" />
+    <memory_block name="irom" start_address="0x8000" length="0x2000" mode="r" initialized="false" />
     <memory_block name="hw" start_address="0xff00" length="0x200" mode="rw" initialized="false" />
   </default_memory_blocks>
   <volatile outputop="write_volatile" inputop="read_volatile">
