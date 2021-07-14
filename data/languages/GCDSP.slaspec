@@ -28,6 +28,15 @@ define register offset=0xA0 size=6 [ ax0 ];
 define register offset=0xB0 size=2 [ ax1.l ax1.h ];
 define register offset=0xB0 size=6 [ ax1 ];
 
+# Fake register for extra-fake purposes; hardware uses some of the stacks for this
+define register offset=0xF0 size=4 [ loopcontext ];
+
+# Magic to make loops work
+define context loopcontext
+	loopaddr = (0,15) noflow
+	hasloop = (16,16) noflow
+;
+
 define token opbyte (16)
 	op0_4  = (0, 3)
 	op3_8  = (3, 7)
@@ -211,41 +220,55 @@ macro FLAGS(result) {
 	sr[7,1] = 0;  # TODO: Overflow (sticky)
 }
 
-:NOP is op0_4=0 & op4_8=0 & op8_16=0 {
+op:"NOP" is op0_4=0 & op4_8=0 & op8_16=0 {
 }
 
-:DAR ar0_2 is ar0_2 & op2_4=0b01 & op4_8=0 & op8_16=0 {
+op:"DAR" ar0_2 is ar0_2 & op2_4=0b01 & op4_8=0 & op8_16=0 {
 	ar0_2 = ar0_2 - 1;
 }
 
-:IAR ar0_2 is ar0_2 & op2_4=0b10 & op4_8=0 & op8_16=0 {
+op:"IAR" ar0_2 is ar0_2 & op2_4=0b10 & op4_8=0 & op8_16=0 {
 	ar0_2 = ar0_2 - 1;
 }
 
 # No instruction with op2_4=0b11 & op4_8=0 & op8_16=0
 
-:IAR ar0_2, ix2_4 is ar0_2 & ix2_4 & op4_8=0b0001 & op8_16=0 {
+op:"IAR" ar0_2, ix2_4 is ar0_2 & ix2_4 & op4_8=0b0001 & op8_16=0 {
 	ar0_2 = ar0_2 + ix2_4;
 }
 
-:HALT is op0_4=0b0001 & op4_8=0b0010 & op8_16=0 unimpl
+op:"HALT" is op0_4=0b0001 & op4_8=0b0010 & op8_16=0 unimpl
 
-:LOOP reg0_5          is reg0_5 & op5_8=0b010 & op8_16=0 unimpl
-:BLOOP reg0_5, Addr16 is reg0_5 & op5_8=0b011 & op8_16=0; Addr16 unimpl
+op:"LOOP" reg0_5          is reg0_5 & op5_8=0b010 & op8_16=0 [
+	hasloop = 1;
+	loopaddr = inst_start + 1;
+	globalset(inst_next, hasloop);
+	globalset(inst_next, loopaddr);
+] {
+	st3 = reg0_5;
+}
+op:"BLOOP" reg0_5, Addr16 is reg0_5 & op5_8=0b011 & op8_16=0; Addr16 [
+	hasloop = 1;
+	loopaddr = inst_start + 2;
+	globalset(Addr16, hasloop);
+	globalset(Addr16, loopaddr);
+] {
+	st3 = reg0_5;
+}
 
-:LRI reg0_5, Imm16 is reg0_5 & op5_8=0b100 & op8_16=0; Imm16 {
+op:"LRI" reg0_5, Imm16 is reg0_5 & op5_8=0b100 & op8_16=0; Imm16 {
 	reg0_5 = Imm16;
 	# "Perform an additional operation depending on destination register"
 }
 
 # No instruction with op5_8=0b101 & op8_16=0
 
-:LR reg0_5, Mem16 is reg0_5 & op5_8=0b110 & op8_16=0; Mem16 {
+op:"LR" reg0_5, Mem16 is reg0_5 & op5_8=0b110 & op8_16=0; Mem16 {
 	reg0_5 = Mem16;
 	# "Perform an additional operation depending on destination register"
 }
 
-:SR reg0_5, Mem16 is reg0_5 & op5_8=0b111 & op8_16=0; Mem16 {
+op:"SR" reg0_5, Mem16 is reg0_5 & op5_8=0b111 & op8_16=0; Mem16 {
 	Mem16 = reg0_5;
 	# "Perform an additional operation depending on destination register"
 }
@@ -267,21 +290,21 @@ cc: "ZR" is cc0_4=0b1101 { c:1 = ((sr & 0x40) != 0); export c; }
 cc: "O"  is cc0_4=0b1110 { c:1 = ((sr & 0x02) != 0); export c; }
 # The always variant (cc0_4=0b1111) isn't listed here, so it can be handled separately
 
-:IF^cc is cc & op4_8=0b0111 & op8_16=2 unimpl
+op:"IF"^cc is cc & op4_8=0b0111 & op8_16=2 unimpl
 # if (!cc) goto inst_next;
 
-:J^cc Addr16 is cc & op4_8=0b1001 & op8_16=2; Addr16 {
+op:"J"^cc Addr16 is cc & op4_8=0b1001 & op8_16=2; Addr16 {
 	if (!cc) goto inst_next;
 	goto Addr16;
 }
 
-:CALL^cc Addr16 is cc & op4_8=0b1011 & op8_16=2; Addr16 {
+op:"CALL"^cc Addr16 is cc & op4_8=0b1011 & op8_16=2; Addr16 {
 	# TODO: Update stack
 	if (!cc) goto inst_next;
 	call Addr16;
 }
 
-:RET^cc is cc & op4_8=0b1101 & op8_16=2 {
+op:"RET"^cc is cc & op4_8=0b1101 & op8_16=2 {
 	if (!cc) goto inst_next;
 
 	tmp:2 = 0; # TODO: Return address
@@ -291,154 +314,168 @@ cc: "O"  is cc0_4=0b1110 { c:1 = ((sr & 0x02) != 0); export c; }
 # Unconditional variants
 
 # Unconditionally execute the next opcode, presumably... not very useful?  Mark as unimpl so that a warning occurs
-:IF is cc0_4=0b1111 & op4_8=0b0111 & op8_16=2 unimpl
+op:"IF" is cc0_4=0b1111 & op4_8=0b0111 & op8_16=2 unimpl
 
-:JMP Addr16 is cc0_4=0b1111 & op4_8=0b1001 & op8_16=2; Addr16 {
+op:"JMP" Addr16 is cc0_4=0b1111 & op4_8=0b1001 & op8_16=2; Addr16 {
 	goto Addr16;
 }
 
-:CALL Addr16 is cc0_4=0b1111 & op4_8=0b1011 & op8_16=2; Addr16 {
+op:"CALL" Addr16 is cc0_4=0b1111 & op4_8=0b1011 & op8_16=2; Addr16 {
 	# TODO: Update stack
 	call Addr16;
 }
 
-:RET is cc0_4=0b1111 & op4_8=0b1101 & op8_16=2 {
+op:"RET" is cc0_4=0b1111 & op4_8=0b1101 & op8_16=2 {
 	tmp:2 = 0; # TODO: Return address
 	return [tmp];
 }
 
-:ADDI  acs8, SImm16 is op0_4=0 & op4_8=0b0000 & acs8 & op9_16=1 & acf8; SImm16 { acs8 = acs8 + SImm16; FLAGS(acf8); }
-:XORI  acm8, SImm16 is op0_4=0 & op4_8=0b0010 & acm8 & op9_16=1 & acf8; SImm16 { acm8 = acm8 ^ SImm16; FLAGS(acf8); }
-:ANDI  acm8, SImm16 is op0_4=0 & op4_8=0b0100 & acm8 & op9_16=1 & acf8; SImm16 { acm8 = acm8 & SImm16; FLAGS(acf8); }
-:ORI   acm8, SImm16 is op0_4=0 & op4_8=0b0110 & acm8 & op9_16=1 & acf8; SImm16 { acm8 = acm8 | SImm16; FLAGS(acf8); }
-:CMPI  acf8, SImm16 is op0_4=0 & op4_8=0b1000 & acf8 & op9_16=1; SImm16 { FLAGS(acf8 - (SImm16 << 16)); }
-:ANDCF acm8, SImm16 is op0_4=0 & op4_8=0b1010 & acm8 & op9_16=1; SImm16 unimpl
-:ANDF  acm8, SImm16 is op0_4=0 & op4_8=0b1100 & acm8 & op9_16=1; SImm16 unimpl
+op:"ADDI"  acs8, SImm16 is op0_4=0 & op4_8=0b0000 & acs8 & op9_16=1 & acf8; SImm16 { acs8 = acs8 + SImm16; FLAGS(acf8); }
+op:"XORI"  acm8, SImm16 is op0_4=0 & op4_8=0b0010 & acm8 & op9_16=1 & acf8; SImm16 { acm8 = acm8 ^ SImm16; FLAGS(acf8); }
+op:"ANDI"  acm8, SImm16 is op0_4=0 & op4_8=0b0100 & acm8 & op9_16=1 & acf8; SImm16 { acm8 = acm8 & SImm16; FLAGS(acf8); }
+op:"ORI"   acm8, SImm16 is op0_4=0 & op4_8=0b0110 & acm8 & op9_16=1 & acf8; SImm16 { acm8 = acm8 | SImm16; FLAGS(acf8); }
+op:"CMPI"  acf8, SImm16 is op0_4=0 & op4_8=0b1000 & acf8 & op9_16=1; SImm16 { FLAGS(acf8 - (SImm16 << 16)); }
+op:"ANDCF" acm8, SImm16 is op0_4=0 & op4_8=0b1010 & acm8 & op9_16=1; SImm16 unimpl
+op:"ANDF"  acm8, SImm16 is op0_4=0 & op4_8=0b1100 & acm8 & op9_16=1; SImm16 unimpl
 
-:ILLR acm8, "@"^ar0_2 is ar0_2 & op2_4=0 & op4_8=1 & acm8 & op9_16=1 {
+op:"ILLR" acm8, "@"^ar0_2 is ar0_2 & op2_4=0 & op4_8=1 & acm8 & op9_16=1 {
 	acm8 = *:2 ar0_2;
 }
 
-:ILLRD acm8, "@"^ar0_2 is ar0_2 & op2_4=1 & op4_8=1 & acm8 & op9_16=1 {
+op:"ILLRD" acm8, "@"^ar0_2 is ar0_2 & op2_4=1 & op4_8=1 & acm8 & op9_16=1 {
 	acm8 = *:2 ar0_2;
 	ar0_2 = ar0_2 - 1;
 }
 
-:ILLRI acm8, "@"^ar0_2 is ar0_2 & op2_4=2 & op4_8=1 & acm8 & op9_16=1 {
+op:"ILLRI" acm8, "@"^ar0_2 is ar0_2 & op2_4=2 & op4_8=1 & acm8 & op9_16=1 {
 	acm8 = *:2 ar0_2;
 	ar0_2 = ar0_2 + 1;
 }
 
 # ar0_2 and ix0_2 are the same bits in the instruction.  The manual doesn't show ix0_2, but I've included it in the disassembly.
-:ILLRN acm8, "@"^ar0_2, ix0_2 is ar0_2 & op2_4=3 & op4_8=1 & acm8 & op9_16=1 & ix0_2 {
+op:"ILLRN" acm8, "@"^ar0_2, ix0_2 is ar0_2 & op2_4=3 & op4_8=1 & acm8 & op9_16=1 & ix0_2 {
 	acm8 = *:2 ar0_2;
 	ar0_2 = ar0_2 + ix0_2;
 }
 
 # "Perform an additional operation depending on destination register"
-:ADDIS acm8, SImm8 is SImm8 & acm8 & op9_16=0b0000010 unimpl
-:CMPIS acm8, SImm8 is SImm8 & acm8 & op9_16=0b0000011 unimpl
-:LRIS ac8_11, SImm8 is SImm8 & ac8_11 & op11_16=0b00001 {
+op:"ADDIS" acm8, SImm8 is SImm8 & acm8 & op9_16=0b0000010 {}
+op:"CMPIS" acm8, SImm8 is SImm8 & acm8 & op9_16=0b0000011 unimpl
+op:"LRIS" ac8_11, SImm8 is SImm8 & ac8_11 & op11_16=0b00001 {
 	ac8_11 = SImm8;
 }
 
-:LOOPI Imm8 is Imm8 & op8_16=0b00010000 unimpl
-:BLOOPI Imm8, Addr16 is Imm8 & op8_16=0b00010001; Addr16 unimpl
+op:"LOOPI" Imm8 is Imm8 & op8_16=0b00010000 [
+	hasloop = 1;
+	loopaddr = inst_start + 1;
+	globalset(inst_next, hasloop);
+	globalset(inst_next, loopaddr);
+] {
+	st3 = Imm8;
+}
+op:"BLOOPI" Imm8, Addr16 is Imm8 & op8_16=0b00010001; Addr16 [
+	hasloop = 1;
+	loopaddr = inst_start + 2;
+	globalset(Addr16, hasloop);
+	globalset(Addr16, loopaddr);
+] {
+	st3 = Imm8;
+}
 
 # op3_8 is marked as ????? in the table but shown as 0s for the instruction itself
 # TODO: Could maybe specify what the bit is with a name
-:SBSET Imm3 is Imm3 & op3_8=0 & op8_16=0b00010010 {
+op:"SBSET" Imm3 is Imm3 & op3_8=0 & op8_16=0b00010010 {
 	sr = sr | 1 << (6 + Imm3);
 }
-:SBCLR Imm3 is Imm3 & op3_8=0 & op8_16=0b00010011 {
+op:"SBCLR" Imm3 is Imm3 & op3_8=0 & op8_16=0b00010011 {
 	sr = sr & ~(1 << (6 + Imm3));
 }
 
 # The manual is written such that it implies LSL/LSR and ASL/ASR are the same instruction with a 7-bit signed immediate value,
 # though it treats them as 2 pairs of instructions with a 6-bit value (allegedly somehow sign-extended for the right-shift)
-:LSL acf8, Imm6 is Imm6 & op6_8=0b00 & acf8 & op9_16=0b0001010 {
+op:"LSL" acf8, Imm6 is Imm6 & op6_8=0b00 & acf8 & op9_16=0b0001010 {
 	acf8 = acf8 << Imm6;
 }
-:LSR acf8, Imm6 is Imm6 & op6_8=0b01 & acf8 & op9_16=0b0001010  {
+op:"LSR" acf8, Imm6 is Imm6 & op6_8=0b01 & acf8 & op9_16=0b0001010  {
 	acf8 = acf8 >> Imm6;
 }
-:ASL acf8, Imm6 is Imm6 & op6_8=0b10 & acf8 & op9_16=0b0001010 {
+op:"ASL" acf8, Imm6 is Imm6 & op6_8=0b10 & acf8 & op9_16=0b0001010 {
 	# This doesn't do anything different, does it?
 	acf8 = acf8 << Imm6;
 }
-:ASR acf8, Imm6 is Imm6 & op6_8=0b11 & acf8 & op9_16=0b0001010 {
+op:"ASR" acf8, Imm6 is Imm6 & op6_8=0b11 & acf8 & op9_16=0b0001010 {
 	acf8 = acf8 s>> Imm6;
 }
 
 # TODO: Not documented.  Dolphin's DSPTables.cpp mentions "these two were discovered by ector".
-:LSRN is op0_4=0b1010 & op4_8=0b1100 & op8_16=2 unimpl
-:ASRN is op0_4=0b1011 & op4_8=0b1100 & op8_16=2 unimpl
+op:"LSRN" is op0_4=0b1010 & op4_8=0b1100 & op8_16=2 unimpl
+op:"ASRN" is op0_4=0b1011 & op4_8=0b1100 & op8_16=2 unimpl
 
-:SI Mem8, Imm16 is Mem8 & op8_16=0b00010110; Imm16 {
+op:"SI" Mem8, Imm16 is Mem8 & op8_16=0b00010110; Imm16 {
 	Mem8 = Imm16;
 }
 
-:CALLR reg5_8 is op0_5=0b11111 & reg5_8 & op8_16=0b00010111 {
+op:"CALLR" reg5_8 is op0_5=0b11111 & reg5_8 & op8_16=0b00010111 {
 	# TODO: Update stack
 	call [reg5_8];
 }
-:JMPR reg5_8 is op0_5=0b01111 & reg5_8 & op8_16=0b00010111 {
+op:"JMPR" reg5_8 is op0_5=0b01111 & reg5_8 & op8_16=0b00010111 {
 	goto [reg5_8];
 }
 
-:LRR  reg0_5, "@"^ar5_7 is reg0_5 & ar5_7 & op7_9=0b00 & op9_16=0b0001100 {
+op:"LRR"  reg0_5, "@"^ar5_7 is reg0_5 & ar5_7 & op7_9=0b00 & op9_16=0b0001100 {
 	reg0_5 = *:2 ar5_7;
 	# "Perform an additional operation depending on destination register"
 }
-:LRRD reg0_5, "@"^ar5_7 is reg0_5 & ar5_7 & op7_9=0b01 & op9_16=0b0001100 {
+op:"LRRD" reg0_5, "@"^ar5_7 is reg0_5 & ar5_7 & op7_9=0b01 & op9_16=0b0001100 {
 	reg0_5 = *:2 ar5_7;
 	ar5_7 = ar5_7 - 1;
 	# "Perform an additional operation depending on destination register"
 }
-:LRRI reg0_5, "@"^ar5_7 is reg0_5 & ar5_7 & op7_9=0b10 & op9_16=0b0001100 {
+op:"LRRI" reg0_5, "@"^ar5_7 is reg0_5 & ar5_7 & op7_9=0b10 & op9_16=0b0001100 {
 	reg0_5 = *:2 ar5_7;
 	ar5_7 = ar5_7 + 1;
 	# "Perform an additional operation depending on destination register"
 }
-:LRRN reg0_5, "@"^ar5_7, ix5_7 is reg0_5 & ar5_7 & op7_9=0b11 & op9_16=0b0001100 & ix5_7 {
+op:"LRRN" reg0_5, "@"^ar5_7, ix5_7 is reg0_5 & ar5_7 & op7_9=0b11 & op9_16=0b0001100 & ix5_7 {
 	reg0_5 = *:2 ar5_7;
 	ar5_7 = ar5_7 + ix5_7;  # ar5_7 and ix5_7 are the same bits in the instruction.  I've included it in the disassembly, but it's not like that in the manual.
 	# "Perform an additional operation depending on destination register"
 }
 
-:SRR  reg0_5, "@"^ar5_7 is reg0_5 & ar5_7 & op7_9=0b00 & op9_16=0b0001101 {
+op:"SRR"  reg0_5, "@"^ar5_7 is reg0_5 & ar5_7 & op7_9=0b00 & op9_16=0b0001101 {
 	*:2 ar5_7 = reg0_5;
 	# "Perform an additional operation depending on destination register"
 }
-:SRRD reg0_5, "@"^ar5_7 is reg0_5 & ar5_7 & op7_9=0b01 & op9_16=0b0001101 {
+op:"SRRD" reg0_5, "@"^ar5_7 is reg0_5 & ar5_7 & op7_9=0b01 & op9_16=0b0001101 {
 	*:2 ar5_7 = reg0_5;
 	ar5_7 = ar5_7 - 1;
 	# "Perform an additional operation depending on destination register"
 }
-:SRRI reg0_5, "@"^ar5_7 is reg0_5 & ar5_7 & op7_9=0b10 & op9_16=0b0001101 {
+op:"SRRI" reg0_5, "@"^ar5_7 is reg0_5 & ar5_7 & op7_9=0b10 & op9_16=0b0001101 {
 	*:2 ar5_7 = reg0_5;
 	ar5_7 = ar5_7 + 1;
 	# "Perform an additional operation depending on destination register"
 }
-:SRRN reg0_5, "@"^ar5_7, ix5_7 is reg0_5 & ar5_7 & op7_9=0b11 & op9_16=0b0001101 & ix5_7 {
+op:"SRRN" reg0_5, "@"^ar5_7, ix5_7 is reg0_5 & ar5_7 & op7_9=0b11 & op9_16=0b0001101 & ix5_7 {
 	*:2 ar5_7 = reg0_5;
 	ar5_7 = ar5_7 + ix5_7;  # ar5_7 and ix5_7 are the same bits in the instruction.  I've included it in the disassembly, but it's not like that in the manual.
 	# "Perform an additional operation depending on destination register"
 }
 
-:MRR reg5_10, reg0_5 is reg0_5 & reg5_10 & op10_16=0b000111 {
+op:"MRR" reg5_10, reg0_5 is reg0_5 & reg5_10 & op10_16=0b000111 {
 	reg5_10 = reg0_5;
 }
 
-:LRS ac8_11, Mem8 is Mem8 & ac8_11 & op11_16=0b00100 {
+op:"LRS" ac8_11, Mem8 is Mem8 & ac8_11 & op11_16=0b00100 {
 	ac8_11 = Mem8;
 }
-:SRS ac8_11, Mem8 is Mem8 & ac8_11 & op11_16=0b00101 {
+op:"SRS" ac8_11, Mem8 is Mem8 & ac8_11 & op11_16=0b00101 {
 	Mem8 = ac8_11;
 }
 
 # TODO: Not documented in the manual
-:RTI is op0_4=0b1111 & op4_8=0b1111 & op8_16=2 {
+op:"RTI" is op0_4=0b1111 & op4_8=0b1111 & op8_16=2 {
 	tmp:2 = 0; # TODO: Return address
 	return [tmp];
 }
@@ -882,7 +919,20 @@ ext_opc:"LD2NM"           is xop0_2=3 & xax0lh2 & xax1lh3 & xop4_6=3 & xop6_8=3 
 ext_opp:xax0lh2, xax1lh3 is xop0_2=3 & xax0lh2 & xax1lh3 & xop4_6=3 & xop6_8=3 unimpl
 
 # Combine arithmetic ops and extension ops
-:^a_opc^"'"^ext_opc a_opp ":" ext_opp is a_opc & a_opp; ext_opc & ext_opp { build a_opp; build ext_opp; }
+op:^a_opc^"'"^ext_opc a_opp ":" ext_opp is a_opc & a_opp; ext_opc & ext_opp { build a_opp; build ext_opp; }
 
 # Although the manual doesn't mention it, if the extension opcode is set to 0, it seems like it's a NOP.
-:^a_opc a_opp is a_opc & a_opp; xop0_8=0 { build a_opp; }
+op:^a_opc a_opp is a_opc & a_opp; xop0_8=0 { build a_opp; }
+
+# Regular ops
+:^op is hasloop=0 & op { build op; }
+:^op is hasloop=1 & op & loopaddr {
+	build op;
+	st3 = st3 - 1;
+	# Hack per https://github.com/NationalSecurityAgency/ghidra/issues/2019#issuecomment-647665522
+	# We can't do if (st3 == 0) goto [dest] for whatever reason (nor can we do goto [loopaddr]
+	dest:2 = loopaddr;
+	if (st3 == 0) goto <post_go>;
+	goto [dest];
+	<post_go>
+}
