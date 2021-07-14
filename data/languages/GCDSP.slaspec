@@ -43,6 +43,7 @@ define token opbyte (16)
 	op0_5  = (0, 4)
 
 	ar0_2 = (0, 1)
+	ix0_2 = (0, 1)
 
 	ix2_4 = (2, 3)
 	op2_4 = (2, 3)
@@ -316,6 +317,22 @@ cc: "O"  is cc0_4=0b1110 { c:1 = ((sr & 0x02) != 0); export c; }
 
 :ILLR acm8, "@"^ar0_2 is ar0_2 & op2_4=0 & op4_8=1 & acm8 & op9_16=1 {
 	acm8 = *:2 ar0_2;
+}
+
+:ILLRD acm8, "@"^ar0_2 is ar0_2 & op2_4=1 & op4_8=1 & acm8 & op9_16=1 {
+	acm8 = *:2 ar0_2;
+	ar0_2 = ar0_2 - 1;
+}
+
+:ILLRI acm8, "@"^ar0_2 is ar0_2 & op2_4=2 & op4_8=1 & acm8 & op9_16=1 {
+	acm8 = *:2 ar0_2;
+	ar0_2 = ar0_2 + 1;
+}
+
+# ar0_2 and ix0_2 are the same bits in the instruction.  The manual doesn't show ix0_2, but I've included it in the disassembly.
+:ILLRN acm8, "@"^ar0_2, ix0_2 is ar0_2 & op2_4=3 & op4_8=1 & acm8 & op9_16=1 & ix0_2 {
+	acm8 = *:2 ar0_2;
+	ar0_2 = ar0_2 + ix0_2;
 }
 
 # "Perform an additional operation depending on destination register"
