@@ -370,6 +370,10 @@ cc: "O"  is cc0_4=0b1110 { c:1 = ((sr & 0x02) != 0); export c; }
 	acf8 = acf8 s>> Imm6;
 }
 
+# TODO: Not documented.  Dolphin's DSPTables.cpp mentions "these two were discovered by ector".
+:LSRN is op0_4=0b1010 & op4_8=0b1100 & op8_16=2 unimpl
+:ASRN is op0_4=0b1011 & op4_8=0b1100 & op8_16=2 unimpl
+
 :SI Mem8, Imm16 is Mem8 & op8_16=0b00010110; Imm16 {
 	Mem8 = Imm16;
 }
