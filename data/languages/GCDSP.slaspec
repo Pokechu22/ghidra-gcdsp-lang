@@ -230,23 +230,8 @@ macro FLAGS(result) {
 
 :HALT is op0_4=0b0001 & op4_8=0b0010 & op8_16=0 unimpl
 
-:LOOP reg0_5          is reg0_5 & op5_8=0b010 & op8_16=0 {
-	counter:2 = reg0_5;
-  <loopstart>
-	if (counter == 0) goto inst_next;
-	delayslot(2); # Execute the next instruction
-	counter = counter - 1;
-	goto <loopstart>;
-}
-:BLOOP reg0_5, Addr16 is reg0_5 & op5_8=0b011 & op8_16=0; Addr16 & imm16 {
-	counter:2 = reg0_5;
-	num_ins:2 = (imm16 - inst_start)*2;
-  <loopstart>
-	if (counter == 0) goto inst_next;
-	delayslot(num_ins); # Execute the next instruction
-	counter = counter - 1;
-	goto <loopstart>;
-}
+:LOOP reg0_5          is reg0_5 & op5_8=0b010 & op8_16=0 unimpl
+:BLOOP reg0_5, Addr16 is reg0_5 & op5_8=0b011 & op8_16=0; Addr16 unimpl
 
 :LRI reg0_5, Imm16 is reg0_5 & op5_8=0b100 & op8_16=0; Imm16 {
 	reg0_5 = Imm16;
