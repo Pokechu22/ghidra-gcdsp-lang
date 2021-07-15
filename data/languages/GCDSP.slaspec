@@ -17,10 +17,10 @@ define register offset=0x28 size=2 [ prod.l prod.m1 prod.h prod.m2 ]; # Product
 #define register offset=0x38 size=2 [ ac0.l ac1.l ac0.m ac1.m ]; # 40-bit accumulators
 
 # Fake versions of the accumulator registers to make emulating them reasonable
-define register offset=0x80 size=2 [ ac0.l ac0.m ac0.h ];
+define register offset=0x80 size=2 [ ac0.h ac0.m ac0.l ];
 define register offset=0x80 size=6 [ ac0 ];
 define register offset=0x80 size=4 [ acs0 ]; # Short/mid accumulator, 24 bits
-define register offset=0x90 size=2 [ ac1.l ac1.m ac1.h ];
+define register offset=0x90 size=2 [ ac1.h ac1.m ac1.l ];
 define register offset=0x90 size=6 [ ac1 ];
 define register offset=0x90 size=4 [ acs1 ]; # Short/mid accumulator, 24 bits
 define register offset=0xA0 size=2 [ ax0.l ax0.h ];
@@ -387,8 +387,16 @@ op:"ILLRN" acm8, "@"^ar0_2, ix0_2 is ar0_2 & op2_4=3 & op4_8=1 & acm8 & op9_16=1
 }
 
 # "Perform an additional operation depending on destination register"
-op:"ADDIS" acm8, SImm8 is SImm8 & acm8 & op9_16=0b0000010 {}
-op:"CMPIS" acm8, SImm8 is SImm8 & acm8 & op9_16=0b0000011 unimpl
+op:"ADDIS" acf8, SImm8 is SImm8 & acf8 & op9_16=0b0000010 & acs8 {
+	acs8 = acs8 + SImm8;
+	FLAGS(acf8);
+}
+op:"CMPIS" acf8, SImm8 is SImm8 & acf8 & op9_16=0b0000011 & acs8 {
+	acc_old:6 = acf8;
+	acs8 = acs8 + SImm8;
+	FLAGS(acf8);
+	acf8 = acc_old;
+}
 op:"LRIS" ac8_11, SImm8 is SImm8 & ac8_11 & op11_16=0b00001 {
 	ac8_11 = SImm8;
 }
