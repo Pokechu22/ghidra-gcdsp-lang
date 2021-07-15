@@ -9,8 +9,8 @@
 define endian=big;
 define alignment=2;
 
-define space inst      type=ram_space      size=2 wordsize=2;
-define space data      type=ram_space      size=2 wordsize=2 default;
+define space inst     type=ram_space      size=2 wordsize=2;
+define space data     type=ram_space      size=2 wordsize=2 default;
 define space register type=register_space size=1 wordsize=2;
 
 define register offset=0x00 size=2 [ ar0 ar1 ar2 ar3 ]; # Addressing registers
@@ -37,12 +37,14 @@ define register offset=0xB0 size=4 [ ax1 ];
 define register offset=0xC0 size=6 [ prod ];
 
 # Fake register for extra-fake purposes; hardware uses some of the stacks for this
-define register offset=0xF0 size=4 [ loopcontext ];
+define register offset=0xF0 size=8 [ loopcontext ];
 
 # Magic to make loops work
 define context loopcontext
-	loopaddr = (0,15) noflow
-	hasloop = (16,16) noflow
+	loopskipaddr = (0,15) noflow
+	hasloopcheck = (16,16) noflow
+	loopjumpbackaddr = (32,47) noflow
+	hasloopjumpback = (48,48) noflow
 ;
 
 # Regular and hacky implementation of status register
@@ -303,47 +305,34 @@ op:"HALT" is op0_4=0b0001 & op4_8=0b0010 & op8_16=0 {
 }
 
 op:"LOOP" reg0_5          is reg0_5 & op5_8=0b010 & op8_16=0 [
-	hasloop = 1;
-	loopaddr = inst_start + 1;
-	globalset(inst_next, hasloop);
-	globalset(inst_next, loopaddr);
+	hasloopcheck = 1;
+	hasloopjumpback = 1;
+	loopskipaddr = inst_start + 2;
+	loopjumpbackaddr = inst_start + 1;
+	globalset(inst_next, hasloopcheck);
+	globalset(inst_next, hasloopjumpback);
+	globalset(inst_next, loopskipaddr);
+	globalset(inst_next, loopjumpbackaddr);
 ] {
 	st3 = reg0_5;
-
-	dest:2 = (inst_next/2) + 1; # Divide by 2 to account for wordsize
-	if (st3 != 0) goto <post_go>;
-	goto [dest];
-	<post_go>
 }
 @ifndef BLOOP_ONE_AFTER
-op:"BLOOP" reg0_5, Addr16 is reg0_5 & op5_8=0b011 & op8_16=0; Addr16 [
-	hasloop = 1;
-	loopaddr = inst_start + 2;
-	globalset(Addr16, hasloop);
-	globalset(Addr16, loopaddr);
-] {
-	st3 = reg0_5;
-
-	dest:2 = zext(Addr16) + 1;
-	if (st3 != 0) goto <post_go>;
-	goto [dest];
-	<post_go>
-}
+op:"BLOOP" reg0_5, Addr16 is reg0_5 & op5_8=0b011 & op8_16=0; Addr16 & imm16
 @else
-op:"BLOOP" reg0_5, Addr16After is reg0_5 & op5_8=0b011 & op8_16=0; Addr16 & Addr16After [
-	hasloop = 1;
-	loopaddr = inst_start + 2;
-	globalset(Addr16, hasloop);
-	globalset(Addr16, loopaddr);
+op:"BLOOP" reg0_5, Addr16After is reg0_5 & op5_8=0b011 & op8_16=0; Addr16 & Addr16After & imm16
+@endif
+[
+	hasloopcheck = 1;
+	hasloopjumpback = 1;
+	loopskipaddr = imm16 + 1;
+	loopjumpbackaddr = inst_start + 2;
+	globalset(inst_next, hasloopcheck);
+	globalset(Addr16, hasloopjumpback);
+	globalset(inst_next, loopskipaddr);
+	globalset(Addr16, loopjumpbackaddr);
 ] {
 	st3 = reg0_5;
-
-	dest:2 = zext(Addr16After);
-	if (st3 != 0) goto <post_go>;
-	goto [dest];
-	<post_go>
 }
-@endif
 
 op:"LRI" reg0_5, Imm16 is reg0_5 & op5_8=0b100 & op8_16=0; Imm16 {
 	reg0_5 = Imm16;
@@ -392,7 +381,7 @@ op:"J"^cc Addr16 is cc & op4_8=0b1001 & op8_16=2; Addr16 {
 }
 
 op:"CALL"^cc Addr16 is cc & op4_8=0b1011 & op8_16=2; Addr16 {
-	# TODO: Update stack
+	st0 = inst_next;
 	if (!cc) goto inst_next;
 	call Addr16;
 }
@@ -400,8 +389,7 @@ op:"CALL"^cc Addr16 is cc & op4_8=0b1011 & op8_16=2; Addr16 {
 op:"RET"^cc is cc & op4_8=0b1101 & op8_16=2 {
 	if (!cc) goto inst_next;
 
-	tmp:2 = 0; # TODO: Return address
-	return [tmp];
+	return [st0];
 }
 
 # Unconditional variants
@@ -414,13 +402,12 @@ op:"JMP" Addr16 is cc0_4=0b1111 & op4_8=0b1001 & op8_16=2; Addr16 {
 }
 
 op:"CALL" Addr16 is cc0_4=0b1111 & op4_8=0b1011 & op8_16=2; Addr16 {
-	# TODO: Update stack
+	st0 = inst_next;
 	call Addr16;
 }
 
 op:"RET" is cc0_4=0b1111 & op4_8=0b1101 & op8_16=2 {
-	tmp:2 = 0; # TODO: Return address
-	return [tmp];
+	return [st0];
 }
 
 op:"ADDI"  acs8, SImm16 is op0_4=0 & op4_8=0b0000 & acs8 & op9_16=1 & acf8; SImm16 { acs8 = acs8 + SImm16; FLAGS(acf8); }
@@ -471,47 +458,34 @@ op:"LRIS" ac8_11, SImm8 is SImm8 & ac8_11 & op11_16=0b00001 {
 }
 
 op:"LOOPI" Imm8 is Imm8 & op8_16=0b00010000 [
-	hasloop = 1;
-	loopaddr = inst_start + 1;
-	globalset(inst_next, hasloop);
-	globalset(inst_next, loopaddr);
+	hasloopcheck = 1;
+	hasloopjumpback = 1;
+	loopskipaddr = inst_start + 2;
+	loopjumpbackaddr = inst_start + 1;
+	globalset(inst_next, hasloopcheck);
+	globalset(inst_next, hasloopjumpback);
+	globalset(inst_next, loopskipaddr);
+	globalset(inst_next, loopjumpbackaddr);
 ] {
 	st3 = Imm8;
-
-	dest:2 = (inst_next/2) + 1; # Divide by 2 to account for wordsize
-	if (st3 != 0) goto <post_go>;
-	goto [dest];
-	<post_go>
 }
 @ifndef BLOOP_ONE_AFTER
-op:"BLOOPI" Imm8, Addr16 is Imm8 & op8_16=0b00010001; Addr16 [
-	hasloop = 1;
-	loopaddr = inst_start + 2;
-	globalset(Addr16, hasloop);
-	globalset(Addr16, loopaddr);
-] {
-	st3 = Imm8;
-
-	dest:2 = zext(Addr16) + 1;
-	if (st3 != 0) goto <post_go>;
-	goto [dest];
-	<post_go>
-}
+op:"BLOOPI" Imm8, Addr16 is Imm8 & op8_16=0b00010001; Addr16 & imm16
 @else
-op:"BLOOPI" Imm8, Addr16After is Imm8 & op8_16=0b00010001; Addr16 & Addr16After [
-	hasloop = 1;
-	loopaddr = inst_start + 2;
-	globalset(Addr16, hasloop);
-	globalset(Addr16, loopaddr);
+op:"BLOOPI" Imm8, Addr16After is Imm8 & op8_16=0b00010001; Addr16 & Addr16After & imm16
+@endif
+[
+	hasloopcheck = 1;
+	hasloopjumpback = 1;
+	loopskipaddr = imm16 + 1;
+	loopjumpbackaddr = inst_start + 2;
+	globalset(inst_next, hasloopcheck);
+	globalset(Addr16, hasloopjumpback);
+	globalset(inst_next, loopskipaddr);
+	globalset(Addr16, loopjumpbackaddr);
 ] {
 	st3 = Imm8;
-
-	dest:2 = zext(Addr16After);
-	if (st3 != 0) goto <post_go>;
-	goto [dest];
-	<post_go>
 }
-@endif
 
 # op3_8 is marked as ????? in the table but shown as 0s for the instruction itself
 # TODO: Could maybe specify what the bit is with a name
@@ -1128,15 +1102,19 @@ op:^a_opc^"'"^ext_opc a_opp ":" ext_opp is a_opc & a_opp; ext_opc & ext_opp { bu
 # Although the manual doesn't mention it, if the extension opcode is set to 0, it seems like it's a NOP.
 op:^a_opc a_opp is a_opc & a_opp; xop0_8=0 { build a_opp; }
 
+LoopSkipAddrWrapper: loopskipaddr is loopskipaddr { export *[inst]:2 loopskipaddr; }
+LoopJumpBackAddrWrapper: loopjumpbackaddr is loopjumpbackaddr { export *[inst]:2 loopjumpbackaddr; }
+
 # Regular ops
-:^op is hasloop=0 & op { build op; }
-:^op is hasloop=1 & op & loopaddr {
-	build op;
+loopcheck:^op is hasloopcheck=0 & op { build op; }
+loopcheck:^op is hasloopcheck=1 & op & LoopSkipAddrWrapper {
+	if (st3 == 0) goto LoopSkipAddrWrapper;
+
 	st3 = st3 - 1;
-	# Hack per https://github.com/NationalSecurityAgency/ghidra/issues/2019#issuecomment-647665522
-	# We can't do if (st3 == 0) goto [dest] for whatever reason (nor can we do goto [loopaddr]
-	dest:2 = loopaddr;
-	if (st3 == 0) goto <post_go>;
-	goto [dest];
-	<post_go>
+	build op;
+}
+:^loopcheck is hasloopjumpback=0 & loopcheck { build loopcheck; }
+:^loopcheck is hasloopjumpback=1 & loopcheck & LoopJumpBackAddrWrapper {
+	build loopcheck;
+	goto LoopJumpBackAddrWrapper;
 }
