@@ -2,6 +2,9 @@
 
 # Adjust the formatting of BLOOP/BLOOPI; see Addr16After below
 @define BLOOP_ONE_AFTER
+# Directly mutate the sr register instead of a set of fake registers
+# The fake registers provide better decompilation
+#@define USE_REAL_SR_REGISTER
 
 define endian=big;
 define alignment=2;
@@ -42,6 +45,46 @@ define context loopcontext
 	hasloop = (16,16) noflow
 ;
 
+# Regular and hacky implementation of status register
+@ifdef USE_REAL_SR_REGISTER
+@define SR_CARRY            "sr[0,1]"
+@define SR_OVERFLOW         "sr[1,1]"
+@define SR_ARITH_ZERO       "sr[2,1]"
+@define SR_SIGN             "sr[3,1]"
+@define SR_OVER_32          "sr[4,1]"
+@define SR_TOP2BITS         "sr[5,1]"
+@define SR_LOGIC_ZERO       "sr[6,1]"
+@define SR_OVERFLOW_STICKY  "sr[7,1]"
+@define SR_100              "sr[8,1]"
+@define SR_INT_ENABLE       "sr[9,1]"
+@define SR_400              "sr[10,1]"
+@define SR_EXT_INT_ENABLE   "sr[11,1]"
+@define SR_1000             "sr[12,1]"
+@define SR_MUL_MODIFY       "sr[13,1]"
+@define SR_40_MODE          "sr[14,1]"
+@define SR_MUL_UNSIGNED     "sr[15,1]"
+@else
+define space hack_register type=ram_space size=1;
+define hack_register offset=0 size=1 [ SR_CARRY_ SR_OVERFLOW_ SR_ARITH_ZERO_ SR_SIGN_ SR_OVER_32_ SR_TOP2BITS_ SR_LOGIC_ZERO_ SR_OVERFLOW_STICKY_ SR_100_ SR_INT_ENABLE_ SR_400_ SR_EXT_INT_ENABLE_ SR_1000_ SR_MUL_MODIFY_ SR_40_MODE_ SR_MUL_UNSIGNED_ ];
+# Note: forcing to only a single bit.  Also, we need to use macros in both cases for consistent syntax.
+@define SR_CARRY "SR_CARRY_[0,1]"
+@define SR_OVERFLOW "SR_OVERFLOW_[0,1]"
+@define SR_ARITH_ZERO "SR_ARITH_ZERO_[0,1]"
+@define SR_SIGN "SR_SIGN_[0,1]"
+@define SR_OVER_32 "SR_OVER_32_[0,1]"
+@define SR_TOP2BITS "SR_TOP2BITS_[0,1]"
+@define SR_LOGIC_ZERO "SR_LOGIC_ZERO_[0,1]"
+@define SR_OVERFLOW_STICKY "SR_OVERFLOW_STICKY_[0,1]"
+@define SR_100 "SR_100_[0,1]"
+@define SR_INT_ENABLE "SR_INT_ENABLE_[0,1]"
+@define SR_400 "SR_400_[0,1]"
+@define SR_EXT_INT_ENABLE "SR_EXT_INT_ENABLE_[0,1]"
+@define SR_1000 "SR_1000_[0,1]"
+@define SR_MUL_MODIFY "SR_MUL_MODIFY_[0,1]"
+@define SR_40_MODE "SR_40_MODE_[0,1]"
+@define SR_MUL_UNSIGNED "SR_MUL_UNSIGNED_[0,1]"
+@endif
+
 define token opbyte (16)
 	op0_4  = (0, 3)
 	op3_8  = (3, 7)
@@ -77,14 +120,13 @@ define token opbyte (16)
 	acs8 = (8, 8)
 	ac8_11 = (8, 10)
 
-	imm3 = (0, 2)
+	srbit = (0, 2)
 	imm6 = (0, 5)
 
 	imm8 = (0, 7)
 	simm8 = (0, 7) signed
 ;
 
-Imm3: "#"^imm3 is imm3 { export imm3; }
 Imm6: "#"^imm6 is imm6 { export imm6; }
 
 Imm8: "#"^imm8 is imm8 { export imm8; }
@@ -129,6 +171,13 @@ attach variables [ acm8 ] [ ac0.m ac1.m ]; # Middle of 40-bit accumulators
 attach variables [ acf8 ] [ ac0 ac1 ]; # Full 40-bit accumulators
 attach variables [ acs8 ] [ acs0 acs1 ]; # 24 bits of 40-bit accumulators
 attach variables [ ac8_11 ] [ ax0.l ax0.h ax1.l ax1.h ac0.l ac1.l ac0.m ac1.m ]; # 3-bit field referring to a register starting at 0x18 (ax0.l)
+
+@ifdef USE_REAL_SR_REGISTER
+# Offset by 6
+attach names srbit [ SR_LOGIC_ZERO SR_OVERFLOW_STICKY SR_100 SR_INT_ENABLE SR_400 SR_EXT_INT_ENABLE SR_1000 SR_MUL_MODIFY ];
+@else
+attach variables srbit [ SR_LOGIC_ZERO_ SR_OVERFLOW_STICKY_ SR_100_ SR_INT_ENABLE_ SR_400_ SR_EXT_INT_ENABLE_ SR_1000_ SR_MUL_MODIFY_ ];
+@endif
 
 # Opbyte for arithmetic instructions
 define token aopbyte (8)
@@ -222,14 +271,14 @@ attach variables [ xax0lh2 ] [ ax0.l ax0.h ];
 attach variables [ xax1lh3 ] [ ax1.l ax1.h ];
 
 macro FLAGS(result) {
-	sr[0,1] = 0;  # TODO: Carry
-	sr[1,1] = 0;  # TODO: Overflow
-	sr[2,1] = (result == 0);  # Zero
-	sr[3,1] = (result s< 0);  # Sign
-	sr[4,1] = 0;  # TODO: Above s32
-	sr[5,1] = 0;  # TODO: Top 2 bits equal
-	sr[6,1] = 0;  # TODO: Logic zero
-	sr[7,1] = 0;  # TODO: Overflow (sticky)
+	$(SR_CARRY) = 0;  # TODO: Carry
+	$(SR_OVERFLOW) = 0;  # TODO: Overflow
+	$(SR_ARITH_ZERO) = (result == 0);  # Zero
+	$(SR_SIGN) = (result s< 0);  # Sign
+	$(SR_OVER_32) = 0;  # TODO: Above s32
+	$(SR_TOP2BITS) = 0;  # TODO: Top 2 bits equal
+	$(SR_LOGIC_ZERO) = 0;  # TODO: Logic zero
+	$(SR_OVERFLOW_STICKY) = $(SR_OVERFLOW_STICKY) | 0;  # TODO: Overflow (sticky)
 }
 
 op:"NOP" is op0_4=0 & op4_8=0 & op8_16=0 {
@@ -313,21 +362,21 @@ op:"SR" reg0_5, Mem16 is reg0_5 & op5_8=0b111 & op8_16=0; Mem16 {
 	# "Perform an additional operation depending on destination register"
 }
 
-cc: "GE" is cc0_4=0b0000 { c:1 = (((sr & 0x02) == 0) == ((sr & 0x08) == 0)); export c; } # Overflow == Sign
-cc: "L"  is cc0_4=0b0001 { c:1 = (((sr & 0x02) != 0) != ((sr & 0x08) != 0)); export c; } # Overflow != Sign
-cc: "G"  is cc0_4=0b0010 { c:1 = ((((sr & 0x02) == 0) == ((sr & 0x08) == 0)) && ((sr & 0x04) == 0)); export c; } # (Overflow == Sign) && !Zero
-cc: "LE" is cc0_4=0b0011 { c:1 = ((((sr & 0x02) == 0) != ((sr & 0x08) == 0)) || ((sr & 0x04) != 0)); export c; } # (Overflow != Sign) || Zero
-cc: "NE" is cc0_4=0b0100 { c:1 = ((sr & 0x04) == 0); export c; }
-cc: "EQ" is cc0_4=0b0101 { c:1 = ((sr & 0x04) != 0); export c; }
-cc: "NC" is cc0_4=0b0110 { c:1 = ((sr & 0x01) == 0); export c; }
-cc: "C"  is cc0_4=0b0111 { c:1 = ((sr & 0x01) != 0); export c; }
-cc: "x8" is cc0_4=0b1000 { c:1 = ((sr & 0x10) == 0); export c; } # "Below s32"
-cc: "x9" is cc0_4=0b1001 { c:1 = ((sr & 0x10) != 0); export c; } # "Above s32"
-cc: "xA" is cc0_4=0b1010 { c:1 = ((((sr & 0x10) != 0) || ((sr & 0x20) != 0)) && ((sr & 0x04) == 0)); export c; } # Per dolphin
-cc: "xB" is cc0_4=0b1011 { c:1 = ((((sr & 0x10) == 0) && ((sr & 0x20) == 0)) || ((sr & 0x04) != 0)); export c; } # Per dolphin
-cc: "NZ" is cc0_4=0b1100 { c:1 = ((sr & 0x40) == 0); export c; }
-cc: "ZR" is cc0_4=0b1101 { c:1 = ((sr & 0x40) != 0); export c; }
-cc: "O"  is cc0_4=0b1110 { c:1 = ((sr & 0x02) != 0); export c; }
+cc: "GE" is cc0_4=0b0000 { c:1 = ($(SR_OVERFLOW) == $(SR_SIGN)); export c; }
+cc: "L"  is cc0_4=0b0001 { c:1 = ($(SR_OVERFLOW) != $(SR_SIGN)); export c; }
+cc: "G"  is cc0_4=0b0010 { c:1 = (($(SR_OVERFLOW) == $(SR_SIGN)) && !$(SR_ARITH_ZERO)); export c; }
+cc: "LE" is cc0_4=0b0011 { c:1 = (($(SR_OVERFLOW) != $(SR_SIGN)) || $(SR_ARITH_ZERO)); export c; }
+cc: "NE" is cc0_4=0b0100 { c:1 = !$(SR_ARITH_ZERO); export c; }
+cc: "EQ" is cc0_4=0b0101 { c:1 = $(SR_ARITH_ZERO); export c; }
+cc: "NC" is cc0_4=0b0110 { c:1 = !$(SR_CARRY); export c; }
+cc: "C"  is cc0_4=0b0111 { c:1 = $(SR_CARRY); export c; }
+cc: "x8" is cc0_4=0b1000 { c:1 = !$(SR_OVER_32); export c; } # "Below s32"
+cc: "x9" is cc0_4=0b1001 { c:1 = $(SR_OVER_32); export c; } # "Above s32"
+cc: "xA" is cc0_4=0b1010 { c:1 = (($(SR_OVER_32) || $(SR_TOP2BITS)) && !$(SR_ARITH_ZERO)); export c; } # Per dolphin
+cc: "xB" is cc0_4=0b1011 { c:1 = ((!$(SR_OVER_32) && !$(SR_TOP2BITS)) || $(SR_ARITH_ZERO)); export c; } # Per dolphin
+cc: "NZ" is cc0_4=0b1100 { c:1 = !$(SR_LOGIC_ZERO); export c; }
+cc: "ZR" is cc0_4=0b1101 { c:1 = $(SR_LOGIC_ZERO); export c; }
+cc: "O"  is cc0_4=0b1110 { c:1 = $(SR_OVERFLOW); export c; }
 # The always variant (cc0_4=0b1111) isn't listed here, so it can be handled separately
 
 op:"IF"^cc is cc & op4_8=0b0111 & op8_16=2 {
@@ -380,18 +429,10 @@ op:"ANDI"  acm8, SImm16 is op0_4=0 & op4_8=0b0100 & acm8 & op9_16=1 & acf8; SImm
 op:"ORI"   acm8, SImm16 is op0_4=0 & op4_8=0b0110 & acm8 & op9_16=1 & acf8; SImm16 { acm8 = acm8 | SImm16; FLAGS(acf8); }
 op:"CMPI"  acf8, SImm16 is op0_4=0 & op4_8=0b1000 & acf8 & op9_16=1; SImm16 { FLAGS(acf8 - (SImm16 << 16)); }
 op:"ANDCF" acm8, SImm16 is op0_4=0 & op4_8=0b1010 & acm8 & op9_16=1; SImm16 {
-	if ((acm8 & SImm16) == SImm16) goto <set_lz_to_1>;
-	sr = sr & ~0x0040;
-	goto inst_next;
-	<set_lz_to_1>
-	sr = sr | 0x0040;
+	$(SR_LOGIC_ZERO) = ((acm8 & SImm16) == SImm16);
 }
 op:"ANDF"  acm8, SImm16 is op0_4=0 & op4_8=0b1100 & acm8 & op9_16=1; SImm16 {
-	if ((acm8 & SImm16) == 0) goto <set_lz_to_1>;
-	sr = sr & ~0x0040;
-	goto inst_next;
-	<set_lz_to_1>
-	sr = sr | 0x0040;
+	$(SR_LOGIC_ZERO) = ((acm8 & SImm16) == 0);
 }
 
 op:"ILLR" acm8, "@"^ar0_2 is ar0_2 & op2_4=0 & op4_8=1 & acm8 & op9_16=1 {
@@ -474,11 +515,19 @@ op:"BLOOPI" Imm8, Addr16After is Imm8 & op8_16=0b00010001; Addr16 & Addr16After 
 
 # op3_8 is marked as ????? in the table but shown as 0s for the instruction itself
 # TODO: Could maybe specify what the bit is with a name
-op:"SBSET" Imm3 is Imm3 & op3_8=0 & op8_16=0b00010010 {
-	sr = sr | 1 << (6 + Imm3);
+op:"SBSET" srbit is srbit & op3_8=0 & op8_16=0b00010010 {
+@ifdef USE_REAL_SR_REGISTER
+	sr = sr | 1 << (6 + srbit);
+@else
+	srbit = 1;
+@endif
 }
-op:"SBCLR" Imm3 is Imm3 & op3_8=0 & op8_16=0b00010011 {
-	sr = sr & ~(1 << (6 + Imm3));
+op:"SBCLR" srbit is srbit & op3_8=0 & op8_16=0b00010011 {
+@ifdef USE_REAL_SR_REGISTER
+	sr = sr & ~(1 << (6 + srbit));
+@else
+	srbit = 0;
+@endif
 }
 
 # The manual is written such that it implies LSL/LSR and ASL/ASR are the same instruction with a 7-bit signed immediate value,
@@ -760,22 +809,22 @@ a_opp:aaxh0    is aaxh0 & aop1_4=0b011 & aop4_8=0b1000 {
 # These opcodes are based on Dolphin's DSPTables.cpp and per
 # https://github.com/dolphin-emu/dolphin/blob/ffdc8538a162b1ca56e3943c5a78c02358053b2a/Source/Core/Core/DSP/Interpreter/DSPIntMisc.cpp#L148
 a_opc:"M2" is aop0_8=0b10001010 {}
-a_opp:""   is aop0_8=0b10001010 { sr = sr & ~0x2000; }
+a_opp:""   is aop0_8=0b10001010 { $(SR_MUL_MODIFY) = 0; }  # 0 indicates modified behavior here
 
 a_opc:"M0" is aop0_8=0b10001011 {}
-a_opp:""   is aop0_8=0b10001011 { sr = sr | 0x2000; }
+a_opp:""   is aop0_8=0b10001011 { $(SR_MUL_MODIFY) = 1; }
 
 a_opc:"CLR15" is aop0_8=0b10001100 {}
-a_opp:""      is aop0_8=0b10001100 { sr = sr & ~0x4000; }
+a_opp:""      is aop0_8=0b10001100 { $(SR_MUL_UNSIGNED) = 0; }
 
 a_opc:"SET15" is aop0_8=0b10001101 {}
-a_opp:""      is aop0_8=0b10001101 { sr = sr | 0x4000; }
+a_opp:""      is aop0_8=0b10001101 { $(SR_MUL_UNSIGNED) = 1; }
 
 a_opc:"SET16" is aop0_8=0b10001110 {}
-a_opp:""      is aop0_8=0b10001110 { sr = sr & ~0x8000; }
+a_opp:""      is aop0_8=0b10001110 { $(SR_40_MODE) = 0; }
 
 a_opc:"SET40" is aop0_8=0b10001111 {}
-a_opp:""      is aop0_8=0b10001111 { sr = sr | 0x8000; }
+a_opp:""      is aop0_8=0b10001111 { $(SR_40_MODE) = 1; }
 
 # TODO: "$sr.AM bit affects multiply result"
 a_opc:"MUL"        is aop0_3=0b000 & aaxl3 & aop4_8=0b1001 & aaxh3 {}
