@@ -1,5 +1,8 @@
 # sleigh specification file for GameCube DSP
 
+# Adjust the formatting of BLOOP/BLOOPI; see Addr16After below
+@define BLOOP_ONE_AFTER
+
 define endian=big;
 define alignment=2;
 
@@ -94,6 +97,13 @@ define token data16 (16)
 ;
 
 Addr16: imm16 is imm16 { export *[inst]:1 imm16; }
+@ifdef BLOOP_ONE_AFTER
+# Formatting convenience: add 1 to the address for BLOOP/BLOOPI, to point to the address after the loop
+# instead of the one in the loop.  This puts a label after the loop instead of inside of the loop.
+# (This is mainly needed because Ghidra generates the label off of the operand, not the actual jump location.
+# Even with this, BLOOP generates a _read_ reference instead of a jump reference, for some reason)
+Addr16After: dest is imm16 [ dest = imm16 + 1; ] { export *[inst]:1 dest; }
+@endif
 Imm16: "#"^imm16 is imm16 { export imm16; }
 SImm16: "#"^simm16 is simm16 { export simm16; }
 Mem16: "@"^imm16 is imm16 { export *:2 imm16; }
@@ -256,6 +266,7 @@ op:"LOOP" reg0_5          is reg0_5 & op5_8=0b010 & op8_16=0 [
 	goto [dest];
 	<post_go>
 }
+@ifndef BLOOP_ONE_AFTER
 op:"BLOOP" reg0_5, Addr16 is reg0_5 & op5_8=0b011 & op8_16=0; Addr16 [
 	hasloop = 1;
 	loopaddr = inst_start + 2;
@@ -269,6 +280,21 @@ op:"BLOOP" reg0_5, Addr16 is reg0_5 & op5_8=0b011 & op8_16=0; Addr16 [
 	goto [dest];
 	<post_go>
 }
+@else
+op:"BLOOP" reg0_5, Addr16After is reg0_5 & op5_8=0b011 & op8_16=0; Addr16 & Addr16After [
+	hasloop = 1;
+	loopaddr = inst_start + 2;
+	globalset(Addr16, hasloop);
+	globalset(Addr16, loopaddr);
+] {
+	st3 = reg0_5;
+
+	dest:2 = zext(Addr16After);
+	if (st3 != 0) goto <post_go>;
+	goto [dest];
+	<post_go>
+}
+@endif
 
 op:"LRI" reg0_5, Imm16 is reg0_5 & op5_8=0b100 & op8_16=0; Imm16 {
 	reg0_5 = Imm16;
@@ -416,6 +442,7 @@ op:"LOOPI" Imm8 is Imm8 & op8_16=0b00010000 [
 	goto [dest];
 	<post_go>
 }
+@ifndef BLOOP_ONE_AFTER
 op:"BLOOPI" Imm8, Addr16 is Imm8 & op8_16=0b00010001; Addr16 [
 	hasloop = 1;
 	loopaddr = inst_start + 2;
@@ -429,6 +456,21 @@ op:"BLOOPI" Imm8, Addr16 is Imm8 & op8_16=0b00010001; Addr16 [
 	goto [dest];
 	<post_go>
 }
+@else
+op:"BLOOPI" Imm8, Addr16After is Imm8 & op8_16=0b00010001; Addr16 & Addr16After [
+	hasloop = 1;
+	loopaddr = inst_start + 2;
+	globalset(Addr16, hasloop);
+	globalset(Addr16, loopaddr);
+] {
+	st3 = Imm8;
+
+	dest:2 = zext(Addr16After);
+	if (st3 != 0) goto <post_go>;
+	goto [dest];
+	<post_go>
+}
+@endif
 
 # op3_8 is marked as ????? in the table but shown as 0s for the instruction itself
 # TODO: Could maybe specify what the bit is with a name
