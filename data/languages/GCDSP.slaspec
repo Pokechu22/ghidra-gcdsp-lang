@@ -129,10 +129,13 @@ define token opbyte (16)
 	simm8 = (0, 7) signed
 ;
 
-Imm6: "#"^imm6 is imm6 { export imm6; }
+# Note that if *[const]:2 is not used to use the value as a pointer in the constant address space, things break and the value will be treated as 0.
+# i.e. with just { export imm8; } setting a register to Imm8 apepars to set it to 0, while setting it to imm8 works fine.
+# There is a warning for this, though it's not obvious: "Table 'Imm8' exports size 0".
+Imm6: "#"^imm6 is imm6 { export *[const]:2 imm6; }
 
-Imm8: "#"^imm8 is imm8 { export imm8; }
-SImm8: "#"^simm8 is simm8 { export simm8; }
+Imm8: "#"^imm8 is imm8 { export *[const]:2 imm8; }
+SImm8: "#"^simm8 is simm8 { export *[const]:2 simm8; }
 Mem8: "@"^simm8 is simm8 { export *:2 simm8; }  # TODO: Is this formatted right?
 
 define token data16 (16)
@@ -148,8 +151,8 @@ Addr16: imm16 is imm16 { export *[inst]:1 imm16; }
 # Even with this, BLOOP generates a _read_ reference instead of a jump reference, for some reason)
 Addr16After: dest is imm16 [ dest = imm16 + 1; ] { export *[inst]:1 dest; }
 @endif
-Imm16: "#"^imm16 is imm16 { export imm16; }
-SImm16: "#"^simm16 is simm16 { export simm16; }
+Imm16: "#"^imm16 is imm16 { export *[const]:2 imm16; }
+SImm16: "#"^simm16 is simm16 { export *[const]:2 simm16; }
 Mem16: "@"^imm16 is imm16 { export *:2 imm16; }
 
 attach variables [ reg0_5 reg5_10 ] [
@@ -410,11 +413,11 @@ op:"RET" is cc0_4=0b1111 & op4_8=0b1101 & op8_16=2 {
 	return [st0];
 }
 
-op:"ADDI"  acs8, SImm16 is op0_4=0 & op4_8=0b0000 & acs8 & op9_16=1 & acf8; SImm16 { acs8 = acs8 + SImm16; FLAGS(acf8); }
+op:"ADDI"  acs8, SImm16 is op0_4=0 & op4_8=0b0000 & acs8 & op9_16=1 & acf8; SImm16 { acs8 = acs8 + sext(SImm16); FLAGS(acf8); }
 op:"XORI"  acm8, SImm16 is op0_4=0 & op4_8=0b0010 & acm8 & op9_16=1 & acf8; SImm16 { acm8 = acm8 ^ SImm16; FLAGS(acf8); }
 op:"ANDI"  acm8, SImm16 is op0_4=0 & op4_8=0b0100 & acm8 & op9_16=1 & acf8; SImm16 { acm8 = acm8 & SImm16; FLAGS(acf8); }
 op:"ORI"   acm8, SImm16 is op0_4=0 & op4_8=0b0110 & acm8 & op9_16=1 & acf8; SImm16 { acm8 = acm8 | SImm16; FLAGS(acf8); }
-op:"CMPI"  acf8, SImm16 is op0_4=0 & op4_8=0b1000 & acf8 & op9_16=1; SImm16 { FLAGS(acf8 - (SImm16 << 16)); }
+op:"CMPI"  acf8, SImm16 is op0_4=0 & op4_8=0b1000 & acf8 & op9_16=1; SImm16 { FLAGS(acf8 - sext(SImm16 << 16)); }
 op:"ANDCF" acm8, SImm16 is op0_4=0 & op4_8=0b1010 & acm8 & op9_16=1; SImm16 {
 	$(SR_LOGIC_ZERO) = ((acm8 & SImm16) == SImm16);
 }
@@ -444,12 +447,12 @@ op:"ILRRN" acm8, "@"^ar0_2, ix0_2 is ar0_2 & op2_4=3 & op4_8=1 & acm8 & op9_16=1
 
 # "Perform an additional operation depending on destination register"
 op:"ADDIS" acf8, SImm8 is SImm8 & acf8 & op9_16=0b0000010 & acs8 {
-	acs8 = acs8 + SImm8;
+	acs8 = acs8 + sext(SImm8);
 	FLAGS(acf8);
 }
 op:"CMPIS" acf8, SImm8 is SImm8 & acf8 & op9_16=0b0000011 & acs8 {
 	acc_old:6 = acf8;
-	acs8 = acs8 + SImm8;
+	acs8 = acs8 + sext(SImm8);
 	FLAGS(acf8);
 	acf8 = acc_old;
 }
