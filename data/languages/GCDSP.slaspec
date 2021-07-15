@@ -680,24 +680,25 @@ a_opp:aaxh0    is aaxh0 & aop1_4=0b011 & aop4_8=0b1000 {
 }
 
 # TODO: These instructions are not documented in detail in the manual.
-# These opcodes are based on Dolphin's DSPTables.cpp.
+# These opcodes are based on Dolphin's DSPTables.cpp and per
+# https://github.com/dolphin-emu/dolphin/blob/ffdc8538a162b1ca56e3943c5a78c02358053b2a/Source/Core/Core/DSP/Interpreter/DSPIntMisc.cpp#L148
 a_opc:"M2" is aop0_8=0b10001010 {}
-a_opp:""   is aop0_8=0b10001010 unimpl
+a_opp:""   is aop0_8=0b10001010 { sr = sr & ~0x2000; }
 
 a_opc:"M0" is aop0_8=0b10001011 {}
-a_opp:""   is aop0_8=0b10001011 unimpl
+a_opp:""   is aop0_8=0b10001011 { sr = sr | 0x2000; }
 
 a_opc:"CLR15" is aop0_8=0b10001100 {}
-a_opp:""      is aop0_8=0b10001100 unimpl
+a_opp:""      is aop0_8=0b10001100 { sr = sr & ~0x4000; }
 
 a_opc:"SET15" is aop0_8=0b10001101 {}
-a_opp:""      is aop0_8=0b10001101 unimpl
+a_opp:""      is aop0_8=0b10001101 { sr = sr | 0x4000; }
 
 a_opc:"SET16" is aop0_8=0b10001110 {}
-a_opp:""      is aop0_8=0b10001110 unimpl
+a_opp:""      is aop0_8=0b10001110 { sr = sr & ~0x8000; }
 
 a_opc:"SET40" is aop0_8=0b10001111 {}
-a_opp:""      is aop0_8=0b10001111 unimpl
+a_opp:""      is aop0_8=0b10001111 { sr = sr | 0x8000; }
 
 # TODO: "$sr.AM bit affects multiply result"
 a_opc:"MUL"        is aop0_3=0b000 & aaxl3 & aop4_8=0b1001 & aaxh3 {}
