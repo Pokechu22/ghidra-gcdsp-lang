@@ -27,6 +27,7 @@ define register offset=0xA0 size=2 [ ax0.l ax0.h ];
 define register offset=0xA0 size=6 [ ax0 ];
 define register offset=0xB0 size=2 [ ax1.l ax1.h ];
 define register offset=0xB0 size=6 [ ax1 ];
+define register offset=0xC0 size=6 [ prod ];
 
 # Fake register for extra-fake purposes; hardware uses some of the stacks for this
 define register offset=0xF0 size=4 [ loopcontext ];
@@ -584,7 +585,10 @@ a_opp:aacf0, aacf0_other is aacf0 & aop1=0 & aop2_4=3 & aop4_8=0b0100 & aacf0_ot
 }
 
 a_opc:"ADDP" is aacf0 & aop1=1 & aop2_4=3 & aop4_8=0b0100 {}
-a_opp:aacf0  is aacf0 & aop1=1 & aop2_4=3 & aop4_8=0b0100 unimpl # TODO: Product register
+a_opp:aacf0  is aacf0 & aop1=1 & aop2_4=3 & aop4_8=0b0100 {
+	aacf0 = aacf0 + prod;
+	FLAGS(aacf0);
+}
 
 a_opc:"SUBR"        is aacf0 & aax1_2 & aop3=0 & aop4_8=0b0101 {}
 a_opp:aacf0, aax1_2 is aacf0 & aax1_2 & aop3=0 & aop4_8=0b0101 {
@@ -605,7 +609,10 @@ a_opp:aacf0, aacf0_other is aacf0 & aop1=0 & aop2_4=3 & aop4_8=0b0101 & aacf0_ot
 }
 
 a_opc:"SUBP" is aacf0 & aop1=1 & aop2_4=3 & aop4_8=0b0101 {}
-a_opp:aacf0  is aacf0 & aop1=1 & aop2_4=3 & aop4_8=0b0101 unimpl # TODO: Product register
+a_opp:aacf0  is aacf0 & aop1=1 & aop2_4=3 & aop4_8=0b0101 {
+	aacf0 = aacf0 - prod;
+	FLAGS(aacf0);
+}
 
 a_opc:"MOVR"        is aacf0 & aax1_2 & aop3=0 & aop4_8=0b0110 {}
 a_opp:aacf0, aax1_2 is aacf0 & aax1_2 & aop3=0 & aop4_8=0b0110 {
@@ -628,7 +635,10 @@ a_opp:aacf0, aacf0_other is aacf0 & aop1=0 & aop2_4=3 & aop4_8=0b0110 & aacf0_ot
 }
 
 a_opc:"MOVP" is aacf0 & aop1=1 & aop2_4=3 & aop4_8=0b0110 {}
-a_opp:aacf0  is aacf0 & aop1=1 & aop2_4=3 & aop4_8=0b0110 unimpl # TODO: Product register
+a_opp:aacf0  is aacf0 & aop1=1 & aop2_4=3 & aop4_8=0b0110 {
+	aacf0 = prod;
+	FLAGS(aacf0);
+}
 
 a_opc:"ADDAXL"     is aacf0 & aaxl1 & aop2_4=0 & aop4_8=0b0111 {}
 a_opp:aacf0, aaxl1 is aacf0 & aaxl1 & aop2_4=0 & aop4_8=0b0111 {
@@ -667,7 +677,10 @@ a_opp:aacf0 is aacf0 & aop1=0 & aop2_4=3 & aop4_8=0b0111 {
 }
 
 a_opc:"MOVNP" is aacf0 & aop1=1 & aop2_4=3 & aop4_8=0b0111 {}
-a_opp:aacf0   is aacf0 & aop1=1 & aop2_4=3 & aop4_8=0b0111 unimpl # TODO: (Negated) product register
+a_opp:aacf0   is aacf0 & aop1=1 & aop2_4=3 & aop4_8=0b0111 {
+	aacf0 = -prod;
+	FLAGS(aacf0);
+}
 
 # A NOP that is used to specify only an extended opcode.  Bit 3 can be either 0 or 1.
 a_opc:"NX" is aop0_3=0 & aop4_8=0b1000 {}
@@ -692,6 +705,7 @@ a_opp:""     is aop0_3=0b100 & aop3=0 & aop4_8=0b1000 {
 	prod.m1 = 0xfff0;
 	prod.h  = 0x00ff;
 	prod.m2 = 0x0010;
+	prod = 0;
 }
 
 a_opc:"TSTAXH" is aaxh0 & aop1_4=0b011 & aop4_8=0b1000 {}
@@ -722,7 +736,7 @@ a_opp:""      is aop0_8=0b10001111 { sr = sr | 0x8000; }
 
 # TODO: "$sr.AM bit affects multiply result"
 a_opc:"MUL"        is aop0_3=0b000 & aaxl3 & aop4_8=0b1001 & aaxh3 {}
-a_opp:aaxl3, aaxh3 is aop0_3=0b000 & aaxl3 & aop4_8=0b1001 & aaxh3 unimpl
+a_opp:aaxl3, aaxh3 is aop0_3=0b000 & aaxl3 & aop4_8=0b1001 & aaxh3 { prod = sext(aaxl3) * sext(aaxh3); }
 
 a_opc:"ASR16" is aop0_3=0b001 & aacf3 & aop4_8=0b1001 {}
 a_opp:aacf3   is aop0_3=0b001 & aacf3 & aop4_8=0b1001 {
@@ -731,16 +745,27 @@ a_opp:aacf3   is aop0_3=0b001 & aacf3 & aop4_8=0b1001 {
 }
 
 a_opc:"MULMVZ"            is aacf0 & aop1_3=0b01 & aaxl3 & aop4_8=0b1001 & aaxh3 {}
-a_opp:aaxl3, aaxh3, aacf0 is aacf0 & aop1_3=0b01 & aaxl3 & aop4_8=0b1001 & aaxh3 unimpl
+a_opp:aaxl3, aaxh3, aacf0 is aacf0 & aop1_3=0b01 & aaxl3 & aop4_8=0b1001 & aaxh3 {
+	aacf0 = prod & 0xffffffff0000;
+	prod = sext(aaxl3) * sext(aaxh3);
+}
 
 a_opc:"MULAC"             is aacf0 & aop1_3=0b10 & aaxl3 & aop4_8=0b1001 & aaxh3 {}
-a_opp:aaxl3, aaxh3, aacf0 is aacf0 & aop1_3=0b10 & aaxl3 & aop4_8=0b1001 & aaxh3 unimpl
+a_opp:aaxl3, aaxh3, aacf0 is aacf0 & aop1_3=0b10 & aaxl3 & aop4_8=0b1001 & aaxh3 {
+	aacf0 = aacf0 + prod;
+	prod = sext(aaxl3) * sext(aaxh3);
+}
 
 a_opc:"MULMV"             is aacf0 & aop1_3=0b11 & aaxl3 & aop4_8=0b1001 & aaxh3 {}
-a_opp:aaxl3, aaxh3, aacf0 is aacf0 & aop1_3=0b11 & aaxl3 & aop4_8=0b1001 & aaxh3 unimpl
+a_opp:aaxl3, aaxh3, aacf0 is aacf0 & aop1_3=0b11 & aaxl3 & aop4_8=0b1001 & aaxh3 {
+	aacf0 = prod;
+	prod = sext(aaxl3) * sext(aaxh3);
+}
 
 a_opc:"MULX"           is aop0_3=0b000 & aax1lh3 & aax0lh4 & aop5_8=0b101 & aaxh3 {}
-a_opp:aax0lh4, aax1lh3 is aop0_3=0b000 & aax1lh3 & aax0lh4 & aop5_8=0b101 & aaxh3 unimpl
+a_opp:aax0lh4, aax1lh3 is aop0_3=0b000 & aax1lh3 & aax0lh4 & aop5_8=0b101 & aaxh3 {
+	prod = sext(aax0lh4) * sext(aax1lh3);
+}
 
 # 1010r001 is marked as ???
 
@@ -750,16 +775,27 @@ a_opp:aacf3 is aop0_3=0b001 & aacf3 & aop4_8=0b1011 {
 }
 
 a_opc:"MULXMVZ"               is aacf0 & aop1_3=0b01 & aax1lh3 & aax0lh4 & aop5_8=0b101 {}
-a_opp:aax0lh4, aax1lh3, aacf0 is aacf0 & aop1_3=0b01 & aax1lh3 & aax0lh4 & aop5_8=0b101 unimpl
+a_opp:aax0lh4, aax1lh3, aacf0 is aacf0 & aop1_3=0b01 & aax1lh3 & aax0lh4 & aop5_8=0b101 {
+	aacf0 = prod & 0xffffffff0000;
+	prod = sext(aax0lh4) * sext(aax1lh3);
+}
 
 a_opc:"MULXAC"                is aacf0 & aop1_3=0b10 & aax1lh3 & aax0lh4 & aop5_8=0b101 {}
-a_opp:aax0lh4, aax1lh3, aacf0 is aacf0 & aop1_3=0b10 & aax1lh3 & aax0lh4 & aop5_8=0b101 unimpl
+a_opp:aax0lh4, aax1lh3, aacf0 is aacf0 & aop1_3=0b10 & aax1lh3 & aax0lh4 & aop5_8=0b101 {
+	aacf0 = aacf0 + prod;
+	prod = sext(aax0lh4) * sext(aax1lh3);
+}
 
 a_opc:"MULXMV"                is aacf0 & aop1_3=0b11 & aax1lh3 & aax0lh4 & aop5_8=0b101 {}
-a_opp:aax0lh4, aax1lh3, aacf0 is aacf0 & aop1_3=0b11 & aax1lh3 & aax0lh4 & aop5_8=0b101 unimpl
+a_opp:aax0lh4, aax1lh3, aacf0 is aacf0 & aop1_3=0b11 & aax1lh3 & aax0lh4 & aop5_8=0b101 {
+	aacf0 = prod;
+	prod = sext(aax0lh4) * sext(aax1lh3);
+}
 
 a_opc:"MULC"       is aop0_3=0b000 & aaxh3 & aacm4 & aop5_8=0b110 {}
-a_opp:aacm4, aaxh3 is aop0_3=0b000 & aaxh3 & aacm4 & aop5_8=0b110 unimpl
+a_opp:aacm4, aaxh3 is aop0_3=0b000 & aaxh3 & aacm4 & aop5_8=0b110 {
+	prod = sext(aacm4) * sext(aaxh3);
+}
 
 # TODO: Not documented in the manual
 # Also, the order of the operands seems backwards from the other nearby instructions...
@@ -769,27 +805,43 @@ a_opp:aacf3, aaxh4 is aop0_3=0b001 & aacf3 & aaxh4 & aop5_8=0b110 {
 }
 
 a_opc:"MULCMVZ"           is aacf0 & aop1_3=0b01 & aaxh3 & aacm4 & aop5_8=0b110 {}
-a_opp:aacm4, aaxh3, aacf0 is aacf0 & aop1_3=0b01 & aaxh3 & aacm4 & aop5_8=0b110 unimpl
+a_opp:aacm4, aaxh3, aacf0 is aacf0 & aop1_3=0b01 & aaxh3 & aacm4 & aop5_8=0b110 {
+	aacf0 = prod & 0xffffffff0000;
+	prod = sext(aacm4) * sext(aaxh3);
+}
 
 a_opc:"MULCAC"            is aacf0 & aop1_3=0b10 & aaxh3 & aacm4 & aop5_8=0b110 {}
-a_opp:aacm4, aaxh3, aacf0 is aacf0 & aop1_3=0b10 & aaxh3 & aacm4 & aop5_8=0b110 unimpl
+a_opp:aacm4, aaxh3, aacf0 is aacf0 & aop1_3=0b10 & aaxh3 & aacm4 & aop5_8=0b110 {
+	aacf0 = aacf0 + prod;
+	prod = sext(aacm4) * sext(aaxh3);
+}
 
 a_opc:"MULCMV"            is aacf0 & aop1_3=0b11 & aaxh3 & aacm4 & aop5_8=0b110  {}
-a_opp:aacm4, aaxh3, aacf0 is aacf0 & aop1_3=0b11 & aaxh3 & aacm4 & aop5_8=0b110 unimpl
+a_opp:aacm4, aaxh3, aacf0 is aacf0 & aop1_3=0b11 & aaxh3 & aacm4 & aop5_8=0b110 {
+	aacf0 = prod;
+	prod = sext(aacm4) * sext(aaxh3);
+}
 
 a_opc:"MADDX"          is aax1lh0 & aax0lh1 & aop2_4=0b00 & aop4_8=0b1110 {}
-a_opp:aax0lh1, aax1lh0 is aax1lh0 & aax0lh1 & aop2_4=0b00 & aop4_8=0b1110 unimpl
+a_opp:aax0lh1, aax1lh0 is aax1lh0 & aax0lh1 & aop2_4=0b00 & aop4_8=0b1110 {
+	prod = prod + (sext(aax0lh1) * sext(aax1lh0));
+}
 
 a_opc:"MSUBX"          is aax1lh0 & aax0lh1 & aop2_4=0b01 & aop4_8=0b1110 {}
-a_opp:aax0lh1, aax1lh0 is aax1lh0 & aax0lh1 & aop2_4=0b01 & aop4_8=0b1110 unimpl
+a_opp:aax0lh1, aax1lh0 is aax1lh0 & aax0lh1 & aop2_4=0b01 & aop4_8=0b1110 {
+	prod = prod - (sext(aax0lh1) * sext(aax1lh0));
+}
 
 # Docs are ambiguous about if it uses acS.l or acS.m, but say to use m for MSUBC, so I assume this is a typo
 a_opc:"MADDC"      is aaxh0 & aacm1 & aop2_4=0b10 & aop4_8=0b1110 {}
-a_opp:aacm1, aaxh0 is aaxh0 & aacm1 & aop2_4=0b10 & aop4_8=0b1110 unimpl
+a_opp:aacm1, aaxh0 is aaxh0 & aacm1 & aop2_4=0b10 & aop4_8=0b1110 {
+	prod = prod + (sext(aacm1) * sext(aaxh0));
+}
 
 a_opc:"MSUBC"      is aaxh0 & aacm1 & aop2_4=0b11 & aop4_8=0b1110 {}
-a_opp:aacm1, aaxh0 is aaxh0 & aacm1 & aop2_4=0b11 & aop4_8=0b1110 unimpl
-
+a_opp:aacm1, aaxh0 is aaxh0 & aacm1 & aop2_4=0b11 & aop4_8=0b1110 {
+	prod = prod - (sext(aacm1) * sext(aaxh0));
+}
 a_opc:"LSL16" is aacf0 & aop1_4=0b000 & aop4_8=0b1111 {}
 a_opp:aacf0   is aacf0 & aop1_4=0b000 & aop4_8=0b1111 {
 	aacf0 = aacf0 << 16;
@@ -797,7 +849,9 @@ a_opp:aacf0   is aacf0 & aop1_4=0b000 & aop4_8=0b1111 {
 }
 
 a_opc:"MADD"       is aaxl0 & aop1_4=0b001 & aop4_8=0b1111 & aaxh0 {}
-a_opp:aaxl0, aaxh0 is aaxl0 & aop1_4=0b001 & aop4_8=0b1111 & aaxh0 unimpl
+a_opp:aaxl0, aaxh0 is aaxl0 & aop1_4=0b001 & aop4_8=0b1111 & aaxh0 {
+	prod = prod + (sext(aaxl0) * sext(aaxh0));
+}
 
 a_opc:"LSR16" is aacf0 & aop1_4=0b010 & aop4_8=0b1111 {}
 a_opp:aacf0   is aacf0 & aop1_4=0b010 & aop4_8=0b1111 {
@@ -806,10 +860,17 @@ a_opp:aacf0   is aacf0 & aop1_4=0b010 & aop4_8=0b1111 {
 }
 
 a_opc:"MSUB"       is aaxl0 & aop1_4=0b011 & aop4_8=0b1111 & aaxh0 {}
-a_opp:aaxl0, aaxh0 is aaxl0 & aop1_4=0b011 & aop4_8=0b1111 & aaxh0 unimpl
+a_opp:aaxl0, aaxh0 is aaxl0 & aop1_4=0b011 & aop4_8=0b1111 & aaxh0 {
+	prod = prod - (sext(aaxl0) * sext(aaxh0));
+}
 
 a_opc:"ADDPAXZ"    is aacf0 & aaxf1 & aop2_4=0b10 & aop4_8=0b1111 {}
-a_opp:aacf0, aaxf1 is aacf0 & aaxf1 & aop2_4=0b10 & aop4_8=0b1111 unimpl
+a_opp:aacf0, aaxf1 is aacf0 & aaxf1 & aop2_4=0b10 & aop4_8=0b1111 {
+	# TODO: Does the masking happen before or after?
+	# i.e. do prod.l and ax0.l/ax1.l affect the result?
+	accf0 = (prod + aaxf1) & 0xffffffff0000;
+	FLAGS(aacf0);
+}
 
 a_opc:"CLRL" is aacl0 & aop1_4=0b110 & aop4_8=0b1111 & aacf0 {}
 a_opp:aacl0  is aacl0 & aop1_4=0b110 & aop4_8=0b1111 & aacf0 {
@@ -818,7 +879,10 @@ a_opp:aacl0  is aacl0 & aop1_4=0b110 & aop4_8=0b1111 & aacf0 {
 }
 
 a_opc:"MOVPZ" is aacf0 & aop1_4=0b111 & aop4_8=0b1111 {}
-a_opp:aacf0   is aacf0 & aop1_4=0b111 & aop4_8=0b1111 unimpl
+a_opp:aacf0   is aacf0 & aop1_4=0b111 & aop4_8=0b1111 {
+	aacf0 = prod & 0xffffffff0000;
+	FLAGS(aacf0);
+}
 
 # Define extension opcodes and opcode parameters.
 # There is no extension instruction with xop2_4=0 and xop4_8=0.
