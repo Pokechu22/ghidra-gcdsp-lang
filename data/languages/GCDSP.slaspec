@@ -250,7 +250,7 @@ op:"LOOP" reg0_5          is reg0_5 & op5_8=0b010 & op8_16=0 [
 ] {
 	st3 = reg0_5;
 
-	dest:2 = inst_next + 1;
+	dest:2 = (inst_next/2) + 1; # Divide by 2 to account for wordsize
 	if (st3 != 0) goto <post_go>;
 	goto [dest];
 	<post_go>
@@ -410,7 +410,7 @@ op:"LOOPI" Imm8 is Imm8 & op8_16=0b00010000 [
 ] {
 	st3 = Imm8;
 
-	dest:2 = inst_next + 1;
+	dest:2 = (inst_next/2) + 1; # Divide by 2 to account for wordsize
 	if (st3 != 0) goto <post_go>;
 	goto [dest];
 	<post_go>
