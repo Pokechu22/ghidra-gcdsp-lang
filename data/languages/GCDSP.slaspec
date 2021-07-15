@@ -3,7 +3,8 @@
 define endian=big;
 define alignment=2;
 
-define space ram      type=ram_space      size=2 wordsize=2 default;
+define space inst      type=ram_space      size=2 wordsize=2;
+define space data      type=ram_space      size=2 wordsize=2 default;
 define space register type=register_space size=1 wordsize=2;
 
 define register offset=0x00 size=2 [ ar0 ar1 ar2 ar3 ]; # Addressing registers
@@ -92,7 +93,7 @@ define token data16 (16)
 	simm16 = (0,15) signed
 ;
 
-Addr16: imm16 is imm16 { export *:1 imm16; }
+Addr16: imm16 is imm16 { export *[inst]:1 imm16; }
 Imm16: "#"^imm16 is imm16 { export imm16; }
 SImm16: "#"^simm16 is simm16 { export simm16; }
 Mem16: "@"^imm16 is imm16 { export *:2 imm16; }

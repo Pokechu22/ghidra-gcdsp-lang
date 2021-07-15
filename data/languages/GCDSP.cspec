@@ -2,9 +2,10 @@
 
 <compiler_spec>
   <global>
-    <range space="ram"/>
+    <range space="inst"/>
+    <range space="data"/>
   </global>
-  <stackpointer register="st0" space="ram" growth="negative"/>
+  <stackpointer register="st0" space="inst" growth="negative"/>
   <default_proto>
     <prototype name="__stdcall" extrapop="2" stackshift="2">
       <input>

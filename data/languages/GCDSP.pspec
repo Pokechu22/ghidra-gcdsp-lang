@@ -17,43 +17,45 @@
   -->
   <default_symbols>
     <!-- Exception vectors -->
-    <symbol name="RST0" address="ram:0000" entry="true"/>
-    <symbol name="RST1" address="ram:0002" entry="true"/> <!-- Stack under/overflow -->
-    <symbol name="RST2" address="ram:0004" entry="false"/>
-    <symbol name="RST3" address="ram:0006" entry="false"/>
-    <symbol name="RST4" address="ram:0008" entry="false"/>
-    <symbol name="RST5" address="ram:000a" entry="true"/> <!-- Accelerator address overflow -->
-    <symbol name="RST6" address="ram:000c" entry="false"/>
-    <symbol name="RST7" address="ram:000e" entry="true"/> <!-- External interrupt (from CPU) -->
+    <symbol name="RST0" address="inst:0000" entry="true"/>
+    <symbol name="RST1" address="inst:0002" entry="true"/> <!-- Stack under/overflow -->
+    <symbol name="RST2" address="inst:0004" entry="true"/>
+    <symbol name="RST3" address="inst:0006" entry="true"/>
+    <symbol name="RST4" address="inst:0008" entry="true"/>
+    <symbol name="RST5" address="inst:000a" entry="true"/> <!-- Accelerator address overflow -->
+    <symbol name="RST6" address="inst:000c" entry="true"/>
+    <symbol name="RST7" address="inst:000e" entry="true"/> <!-- External interrupt (from CPU) -->
     <!-- Mailboxes -->
-    <symbol name="CMBH" address="ram:FFFE" /> <!-- CPU Mailbox H -->
-    <symbol name="CMBL" address="ram:FFFF" /> <!-- CPU Mailbox L -->
-    <symbol name="DMBH" address="ram:FFFC" /> <!-- DSP Mailbox H -->
-    <symbol name="DMBL" address="ram:FFFD" /> <!-- DSP Mailbox L -->
+    <symbol name="CMBH" address="data:FFFE" /> <!-- CPU Mailbox H -->
+    <symbol name="CMBL" address="data:FFFF" /> <!-- CPU Mailbox L -->
+    <symbol name="DMBH" address="data:FFFC" /> <!-- DSP Mailbox H -->
+    <symbol name="DMBL" address="data:FFFD" /> <!-- DSP Mailbox L -->
     <!-- DMA interface -->
-    <symbol name="DSMAH" address="ram:FFCE" /> <!-- Memory address H -->
-    <symbol name="DSMAL" address="ram:FFCF" /> <!-- Memory address L -->
-    <symbol name="DSPA" address="ram:FFCD" /> <!-- DSP memory address -->
-    <symbol name="DSCR" address="ram:FFC9" /> <!-- DMA control -->
-    <symbol name="DSBL" address="ram:FFCB" /> <!-- Block size -->
+    <symbol name="DSMAH" address="data:FFCE" /> <!-- Memory address H -->
+    <symbol name="DSMAL" address="data:FFCF" /> <!-- Memory address L -->
+    <symbol name="DSPA" address="data:FFCD" /> <!-- DSP memory address -->
+    <symbol name="DSCR" address="data:FFC9" /> <!-- DMA control -->
+    <symbol name="DSBL" address="data:FFCB" /> <!-- Block size -->
     <!-- Accelerator -->
-    <symbol name="ACSAH" address="ram:FFD4" /> <!-- Accelerator start address H -->
-    <symbol name="ACSAL" address="ram:FFD5" /> <!-- Accelerator start address L -->
-    <symbol name="ACEAH" address="ram:FFD6" /> <!-- Accelerator end address H -->
-    <symbol name="ACEAL" address="ram:FFD7" /> <!-- Accelerator end address L -->
-    <symbol name="ACCAH" address="ram:FFD8" /> <!-- Accelerator current address H -->
-    <symbol name="ACCAL" address="ram:FFD9" /> <!-- Accelerator current address L -->
-    <symbol name="ACDAT" address="ram:FFDD" /> <!-- Accelerator data -->
+    <symbol name="ACSAH" address="data:FFD4" /> <!-- Accelerator start address H -->
+    <symbol name="ACSAL" address="data:FFD5" /> <!-- Accelerator start address L -->
+    <symbol name="ACEAH" address="data:FFD6" /> <!-- Accelerator end address H -->
+    <symbol name="ACEAL" address="data:FFD7" /> <!-- Accelerator end address L -->
+    <symbol name="ACCAH" address="data:FFD8" /> <!-- Accelerator current address H -->
+    <symbol name="ACCAL" address="data:FFD9" /> <!-- Accelerator current address L -->
+    <symbol name="ACDAT" address="data:FFDD" /> <!-- Accelerator data -->
     <!-- Interrupts -->
-    <symbol name="DIRQ" address="ram:FFFB" /> <!-- IRQ request -->
+    <symbol name="DIRQ" address="data:FFFB" /> <!-- IRQ request -->
   </default_symbols>
   <default_memory_blocks>
     <!-- Length is in bytes, not processor words.  However, the address IS in processor words. -->
-    <memory_block name="iram" start_address="0x0000" length="0x2000" mode="rw" initialized="false" />
-    <memory_block name="irom" start_address="0x8000" length="0x2000" mode="r" initialized="false" />
-    <memory_block name="hw" start_address="0xff00" length="0x200" mode="rw" initialized="false" />
+    <memory_block name="iram" start_address="inst:0x0000" length="0x2000" mode="rwx" initialized="false" />
+    <memory_block name="irom" start_address="inst:0x8000" length="0x2000" mode="rx" initialized="false" /> <!-- dsp_rom.bin -->
+    <memory_block name="dram" start_address="data:0x0000" length="0x2000" mode="rw" initialized="false" />
+    <memory_block name="coef" start_address="data:0x1000" length="0x1000" mode="rw" initialized="false" /> <!-- dsp_coef.bin -->
+    <memory_block name="hw" start_address="data:0xff00" length="0x200" mode="rwv" initialized="false" />
   </default_memory_blocks>
   <volatile outputop="write_volatile" inputop="read_volatile">
-    <range space="ram" first="0xff00" last="0xffff"/>
+    <range space="data" first="0xff00" last="0xffff"/>
   </volatile>
 </processor_spec>
