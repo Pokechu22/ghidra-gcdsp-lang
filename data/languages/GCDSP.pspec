@@ -25,27 +25,43 @@
     <symbol name="RST5" address="inst:000a" entry="true"/> <!-- Accelerator address overflow -->
     <symbol name="RST6" address="inst:000c" entry="true"/>
     <symbol name="RST7" address="inst:000e" entry="true"/> <!-- External interrupt (from CPU) -->
-    <!-- Mailboxes -->
-    <symbol name="CMBH" address="data:FFFE" /> <!-- CPU Mailbox H -->
-    <symbol name="CMBL" address="data:FFFF" /> <!-- CPU Mailbox L -->
-    <symbol name="DMBH" address="data:FFFC" /> <!-- DSP Mailbox H -->
-    <symbol name="DMBL" address="data:FFFD" /> <!-- DSP Mailbox L -->
+
+    <!-- Hardware registers - some from https://github.com/dolphin-emu/dolphin/blob/0b18f8ae55a21d8446083b92a6666199a478b0fe/Source/Core/Core/DSP/DSPCore.h#L136-L170 -->
+    <symbol name="COEF_A1_0" address="data:FFA0" />
     <!-- DMA interface -->
+    <symbol name="DSCR" address="data:FFC9" /> <!-- DMA control -->
+    <symbol name="DSPA" address="data:FFCD" /> <!-- DSP memory address -->
+    <symbol name="DSBL" address="data:FFCB" /> <!-- Block size -->
     <symbol name="DSMAH" address="data:FFCE" /> <!-- Memory address H -->
     <symbol name="DSMAL" address="data:FFCF" /> <!-- Memory address L -->
-    <symbol name="DSPA" address="data:FFCD" /> <!-- DSP memory address -->
-    <symbol name="DSCR" address="data:FFC9" /> <!-- DMA control -->
-    <symbol name="DSBL" address="data:FFCB" /> <!-- Block size -->
-    <!-- Accelerator -->
+    <!-- Accelerator, etc. -->
+    <symbol name="FORMAT" address="data:FFD1" /> <!-- Sample format -->
+    <symbol name="ACUNK" address="data:FFD2" /> <!-- Usually set to 3 -->
+    <symbol name="ACDATA1" address="data:FFD3" /> <!-- Used by Zelda ucode -->
+
     <symbol name="ACSAH" address="data:FFD4" /> <!-- Accelerator start address H -->
     <symbol name="ACSAL" address="data:FFD5" /> <!-- Accelerator start address L -->
     <symbol name="ACEAH" address="data:FFD6" /> <!-- Accelerator end address H -->
     <symbol name="ACEAL" address="data:FFD7" /> <!-- Accelerator end address L -->
     <symbol name="ACCAH" address="data:FFD8" /> <!-- Accelerator current address H -->
     <symbol name="ACCAL" address="data:FFD9" /> <!-- Accelerator current address L -->
+
+    <symbol name="PRED_SCALE" address="data:FFDA" /> <!-- ADPCM predictor and scale -->
+    <symbol name="YN1" address="data:FFDB" />
+    <symbol name="YN2" address="data:FFDC" />
     <symbol name="ACDAT" address="data:FFDD" /> <!-- Accelerator data -->
+    <symbol name="GAIN" address="data:FFDE" />
+    <symbol name="GAIN" address="data:FFDF" />
+
+    <symbol name="AMDM" address="data:FFEF" /> <!-- ARAM DMA Request Mask 0: DMA with ARAM unmasked 1: masked -->
+
     <!-- Interrupts -->
     <symbol name="DIRQ" address="data:FFFB" /> <!-- IRQ request -->
+    <!-- Mailboxes -->
+    <symbol name="DMBH" address="data:FFFC" /> <!-- DSP Mailbox H -->
+    <symbol name="DMBL" address="data:FFFD" /> <!-- DSP Mailbox L -->
+    <symbol name="CMBH" address="data:FFFE" /> <!-- CPU Mailbox H -->
+    <symbol name="CMBL" address="data:FFFF" /> <!-- CPU Mailbox L -->
   </default_symbols>
   <default_memory_blocks>
     <!-- Length is in bytes, not processor words.  However, the address IS in processor words. -->
