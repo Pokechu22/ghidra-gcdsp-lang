@@ -7,14 +7,51 @@
   </global>
   <stackpointer register="st0" space="inst" growth="negative"/>
   <default_proto>
-    <prototype name="__stdcall" extrapop="2" stackshift="2">
+    <prototype name="__stdcall" extrapop="0" stackshift="0">
       <input>
-        <!-- <pentry minsize="1" maxsize="1">
-          <register name="A"/>
+        <!-- This is a guess -->
+        <pentry minsize="6" maxsize="6">
+          <register name="ac0"/>
         </pentry>
-        <pentry minsize="1" maxsize="1">
-          <register name="B"/>
-        </pentry> -->
+        <pentry minsize="6" maxsize="6">
+          <register name="ac1"/>
+        </pentry>
+        <pentry minsize="4" maxsize="4">
+          <register name="ax0"/>
+        </pentry>
+        <pentry minsize="4" maxsize="4">
+          <register name="ax1"/>
+        </pentry>
+        <pentry minsize="4" maxsize="4">
+          <register name="acs0"/>
+        </pentry>
+        <pentry minsize="4" maxsize="4">
+          <register name="acs1"/>
+        </pentry>
+        <pentry minsize="2" maxsize="2" metatype="pointer">
+          <register name="ar0"/>
+        </pentry>
+        <pentry minsize="2" maxsize="2" metatype="pointer">
+          <register name="ar1"/>
+        </pentry>
+        <pentry minsize="2" maxsize="2" metatype="pointer">
+          <register name="ar2"/>
+        </pentry>
+        <pentry minsize="2" maxsize="2" metatype="pointer">
+          <register name="ar3"/>
+        </pentry>
+        <pentry minsize="2" maxsize="2">
+          <register name="ac0.m"/>
+        </pentry>
+        <pentry minsize="2" maxsize="2">
+          <register name="ac1.m"/>
+        </pentry>
+        <pentry minsize="2" maxsize="2">
+          <register name="ax0.l"/>
+        </pentry>
+        <pentry minsize="2" maxsize="2">
+          <register name="ax1.l"/>
+        </pentry>
       </input>
       <output>
         <!-- <pentry minsize="1" maxsize="1">
@@ -23,6 +60,9 @@
       </output>
       <unaffected>
         <register name="st0"/>
+        <register name="st1"/>
+        <register name="st2"/>
+        <register name="st3"/>
       </unaffected>
     </prototype>
   </default_proto>
