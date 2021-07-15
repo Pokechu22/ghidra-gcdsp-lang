@@ -9,7 +9,7 @@
             slafile="GCDSP.sla"
             processorspec="GCDSP.pspec"
             manualindexfile="../manuals/GCDSP.idx"
-            id="GCDSP:LE:16:default">
+            id="GCDSP:BE:16:default">
     <description>GameCube DSP</description>
     <compiler name="default" spec="GCDSP.cspec" id="default"/>
   </language>
