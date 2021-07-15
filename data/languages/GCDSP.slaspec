@@ -352,12 +352,18 @@ op:"ANDI"  acm8, SImm16 is op0_4=0 & op4_8=0b0100 & acm8 & op9_16=1 & acf8; SImm
 op:"ORI"   acm8, SImm16 is op0_4=0 & op4_8=0b0110 & acm8 & op9_16=1 & acf8; SImm16 { acm8 = acm8 | SImm16; FLAGS(acf8); }
 op:"CMPI"  acf8, SImm16 is op0_4=0 & op4_8=0b1000 & acf8 & op9_16=1; SImm16 { FLAGS(acf8 - (SImm16 << 16)); }
 op:"ANDCF" acm8, SImm16 is op0_4=0 & op4_8=0b1010 & acm8 & op9_16=1; SImm16 {
-	new_lz_value:2 = zext((acm8 & SImm16) == SImm16) * 0x0040;
-	sr = (sr & ~0x0040) | new_lz_value;
+	if ((acm8 & SImm16) == SImm16) goto <set_lz_to_1>;
+	sr = sr & ~0x0040;
+	goto inst_next;
+	<set_lz_to_1>
+	sr = sr | 0x0040;
 }
 op:"ANDF"  acm8, SImm16 is op0_4=0 & op4_8=0b1100 & acm8 & op9_16=1; SImm16 {
-	new_lz_value:2 = zext((acm8 & SImm16) == 0) * 0x0040;
-	sr = (sr & ~0x0040) | new_lz_value;
+	if ((acm8 & SImm16) == 0) goto <set_lz_to_1>;
+	sr = sr & ~0x0040;
+	goto inst_next;
+	<set_lz_to_1>
+	sr = sr | 0x0040;
 }
 
 op:"ILLR" acm8, "@"^ar0_2 is ar0_2 & op2_4=0 & op4_8=1 & acm8 & op9_16=1 {
