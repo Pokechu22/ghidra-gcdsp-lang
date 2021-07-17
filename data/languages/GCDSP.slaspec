@@ -1019,7 +1019,7 @@ ext_opc:"SN"                       is xar0_2 & xop2=1 & xac3_5 & xop5=1 & xop6_8
 ext_opp:"@"^xar0_2, xac3_5, xix0_2 is xar0_2 & xop2=1 & xac3_5 & xop5=1 & xop6_8=0 & xix0_2 { *:2 xar0_2 = xac3_5; xar0_2 = xar0_2 + xix0_2; }
 
 ext_opc:"SL"          is xacm0 & xop1=1 & xop2_4=0 & xax4_6 & xop6_8=2 {}
-ext_opp:xax4_6, xacm0 is xacm0 & xop1=1 & xop2_4=0 & xax4_6 & xop6_8=2 {
+ext_opp:xacm0, xax4_6 is xacm0 & xop1=1 & xop2_4=0 & xax4_6 & xop6_8=2 {
 	xax4_6 = *:2 ar0;
 	*:2 ar3 = xacm0;
 	ar0 = ar0 + 1;
@@ -1027,7 +1027,7 @@ ext_opp:xax4_6, xacm0 is xacm0 & xop1=1 & xop2_4=0 & xax4_6 & xop6_8=2 {
 }
 
 ext_opc:"SLN"         is xacm0 & xop1=1 & xop2_4=1 & xax4_6 & xop6_8=2 {}
-ext_opp:xax4_6, xacm0 is xacm0 & xop1=1 & xop2_4=1 & xax4_6 & xop6_8=2 {
+ext_opp:xacm0, xax4_6 is xacm0 & xop1=1 & xop2_4=1 & xax4_6 & xop6_8=2 {
 	xax4_6 = *:2 ar0;
 	*:2 ar3 = xacm0;
 	ar0 = ar0 + ix0;
@@ -1035,7 +1035,7 @@ ext_opp:xax4_6, xacm0 is xacm0 & xop1=1 & xop2_4=1 & xax4_6 & xop6_8=2 {
 }
 
 ext_opc:"SLM"         is xacm0 & xop1=1 & xop2_4=2 & xax4_6 & xop6_8=2 {}
-ext_opp:xax4_6, xacm0 is xacm0 & xop1=1 & xop2_4=2 & xax4_6 & xop6_8=2 {
+ext_opp:xacm0, xax4_6 is xacm0 & xop1=1 & xop2_4=2 & xax4_6 & xop6_8=2 {
 	xax4_6 = *:2 ar0;
 	*:2 ar3 = xacm0;
 	ar0 = ar0 + 1;
@@ -1043,7 +1043,7 @@ ext_opp:xax4_6, xacm0 is xacm0 & xop1=1 & xop2_4=2 & xax4_6 & xop6_8=2 {
 }
 
 ext_opc:"SLNM"        is xacm0 & xop1=1 & xop2_4=3 & xax4_6 & xop6_8=2 {}
-ext_opp:xax4_6, xacm0 is xacm0 & xop1=1 & xop2_4=3 & xax4_6 & xop6_8=2 {
+ext_opp:xacm0, xax4_6 is xacm0 & xop1=1 & xop2_4=3 & xax4_6 & xop6_8=2 {
 	xax4_6 = *:2 ar0;
 	*:2 ar3 = xacm0;
 	ar0 = ar0 + ix0;
