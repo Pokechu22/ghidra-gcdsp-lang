@@ -299,7 +299,7 @@ op:"IAR" ar0_2 is ar0_2 & op2_4=0b10 & op4_8=0 & op8_16=0 {
 
 # No instruction with op2_4=0b11 & op4_8=0 & op8_16=0
 
-op:"IAR" ar0_2, ix2_4 is ar0_2 & ix2_4 & op4_8=0b0001 & op8_16=0 {
+op:"ADDARN" ar0_2, ix2_4 is ar0_2 & ix2_4 & op4_8=0b0001 & op8_16=0 {
 	ar0_2 = ar0_2 + ix2_4;
 }
 
