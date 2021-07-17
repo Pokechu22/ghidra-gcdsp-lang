@@ -18,7 +18,7 @@ define register offset=0x08 size=2 [ ix0 ix1 ix2 ix3 ]; # Indexing registers
 define register offset=0x10 size=2 [ wr0 wr1 wr2 wr3 ]; # Wrapping registers
 define register offset=0x18 size=2 [ st0 st1 st2 st3 ]; # Stack-related registers
 #define register offset=0x20 size=2 [ ac0.h ac1.h ]; # 40-bit accumulators
-define register offset=0x24 size=2 [ config sr ];
+define register offset=0x24 size=2 [ cr sr ];
 define register offset=0x28 size=2 [ prod.l prod.m1 prod.h prod.m2 ]; # Product
 #define register offset=0x30 size=2 [ ax0.l ax1.l ax0.l ax1.h ]; # 32-bit accumulators
 #define register offset=0x38 size=2 [ ac0.l ac1.l ac0.m ac1.m ]; # 40-bit accumulators
@@ -161,7 +161,7 @@ attach variables [ reg0_5 reg5_10 ] [
 	wr0 wr1 wr2 wr3
 	st0 st1 st2 st3
 	ac0.h ac1.h
-	config sr
+	cr sr
 	prod.l prod.m1 prod.h prod.m2
 	ax0.l ax1.l ax0.h ax1.h
 	ac0.l ac1.l ac0.m ac1.m
