@@ -938,7 +938,7 @@ a_opp:aacf0, aaxf1 is aacf0 & aaxf1 & aop2_4=0b10 & aop4_8=0b1111 {
 	# TODO: Does the masking happen before or after?
 	# i.e. do prod.l and ax0.l/ax1.l affect the result?
 	# TODO: Also, sign extension?
-	accf0 = (prod + sext(aaxf1)) & 0xffffffff0000;
+	aacf0 = (prod + sext(aaxf1)) & 0xffffffff0000;
 	FLAGS(aacf0);
 }
 
