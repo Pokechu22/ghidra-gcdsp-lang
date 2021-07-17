@@ -491,15 +491,15 @@ op:"BLOOPI" Imm8, Addr16After is Imm8 & op8_16=0b00010001; Addr16 & Addr16After 
 }
 
 # op3_8 is marked as ????? in the table but shown as 0s for the instruction itself
-# TODO: Could maybe specify what the bit is with a name
-op:"SBSET" srbit is srbit & op3_8=0 & op8_16=0b00010010 {
+
+op:"SBCLR" srbit is srbit & op3_8=0 & op8_16=0b00010010 {
 @ifdef USE_REAL_SR_REGISTER
 	sr = sr | 1 << (6 + srbit);
 @else
 	srbit = 1;
 @endif
 }
-op:"SBCLR" srbit is srbit & op3_8=0 & op8_16=0b00010011 {
+op:"SBSET" srbit is srbit & op3_8=0 & op8_16=0b00010011 {
 @ifdef USE_REAL_SR_REGISTER
 	sr = sr & ~(1 << (6 + srbit));
 @else
