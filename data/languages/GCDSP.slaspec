@@ -607,19 +607,19 @@ op:"RTI" is op0_4=0b1111 & op4_8=0b1111 & op8_16=2 {
 # The arithmetic opcode is 9 bits and the extension is 7!  Or in other words, things are a bit of a mess...
 a_opc:"XORR"       is aacm0 & aaxh1 & aop2_4=0 & aop4_8=0b0011 & aacf0 {}
 a_opp:aacm0, aaxh1 is aacm0 & aaxh1 & aop2_4=0 & aop4_8=0b0011 & aacf0 {
-	aacm0 = aacm0 ^ zext(aaxh1);
+	aacm0 = aacm0 ^ aaxh1;
 	FLAGS(aacf0);
 }
 
 a_opc:"ANDR"       is aacm0 & aaxh1 & aop2_4=1 & aop4_8=0b0011 & aacf0 {}
 a_opp:aacm0, aaxh1 is aacm0 & aaxh1 & aop2_4=1 & aop4_8=0b0011 & aacf0 {
-	aacm0 = aacm0 & zext(aaxh1);
+	aacm0 = aacm0 & aaxh1;
 	FLAGS(aacf0);
 }
 
 a_opc:"ORR"        is aacm0 & aaxh1 & aop2_4=2 & aop4_8=0b0011 & aacf0 {}
 a_opp:aacm0, aaxh1 is aacm0 & aaxh1 & aop2_4=2 & aop4_8=0b0011 & aacf0 {
-	aacm0 = aacm0 | zext(aaxh1);
+	aacm0 = aacm0 | aaxh1;
 	FLAGS(aacf0);
 }
 
