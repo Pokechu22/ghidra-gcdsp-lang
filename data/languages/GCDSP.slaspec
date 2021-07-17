@@ -349,7 +349,7 @@ op:"LR" reg0_5, Mem16 is reg0_5 & op5_8=0b110 & op8_16=0; Mem16 {
 	# "Perform an additional operation depending on destination register"
 }
 
-op:"SR" reg0_5, Mem16 is reg0_5 & op5_8=0b111 & op8_16=0; Mem16 {
+op:"SR" Mem16, reg0_5 is reg0_5 & op5_8=0b111 & op8_16=0; Mem16 {
 	Mem16 = reg0_5;
 	# "Perform an additional operation depending on destination register"
 }
@@ -559,21 +559,21 @@ op:"LRRN" reg0_5, "@"^ar5_7, ix5_7 is reg0_5 & ar5_7 & op7_9=0b11 & op9_16=0b000
 	# "Perform an additional operation depending on destination register"
 }
 
-op:"SRR"  reg0_5, "@"^ar5_7 is reg0_5 & ar5_7 & op7_9=0b00 & op9_16=0b0001101 {
+op:"SRR"  "@"^ar5_7, reg0_5 is reg0_5 & ar5_7 & op7_9=0b00 & op9_16=0b0001101 {
 	*:2 ar5_7 = reg0_5;
 	# "Perform an additional operation depending on destination register"
 }
-op:"SRRD" reg0_5, "@"^ar5_7 is reg0_5 & ar5_7 & op7_9=0b01 & op9_16=0b0001101 {
+op:"SRRD" "@"^ar5_7, reg0_5 is reg0_5 & ar5_7 & op7_9=0b01 & op9_16=0b0001101 {
 	*:2 ar5_7 = reg0_5;
 	ar5_7 = ar5_7 - 1;
 	# "Perform an additional operation depending on destination register"
 }
-op:"SRRI" reg0_5, "@"^ar5_7 is reg0_5 & ar5_7 & op7_9=0b10 & op9_16=0b0001101 {
+op:"SRRI" "@"^ar5_7, reg0_5 is reg0_5 & ar5_7 & op7_9=0b10 & op9_16=0b0001101 {
 	*:2 ar5_7 = reg0_5;
 	ar5_7 = ar5_7 + 1;
 	# "Perform an additional operation depending on destination register"
 }
-op:"SRRN" reg0_5, "@"^ar5_7, ix5_7 is reg0_5 & ar5_7 & op7_9=0b11 & op9_16=0b0001101 & ix5_7 {
+op:"SRRN" "@"^ar5_7, reg0_5, ix5_7 is reg0_5 & ar5_7 & op7_9=0b11 & op9_16=0b0001101 & ix5_7 {
 	*:2 ar5_7 = reg0_5;
 	ar5_7 = ar5_7 + ix5_7;  # ar5_7 and ix5_7 are the same bits in the instruction.  I've included it in the disassembly, but it's not like that in the manual.
 	# "Perform an additional operation depending on destination register"
@@ -586,7 +586,7 @@ op:"MRR" reg5_10, reg0_5 is reg0_5 & reg5_10 & op10_16=0b000111 {
 op:"LRS" ac8_11, Mem8 is Mem8 & ac8_11 & op11_16=0b00100 {
 	ac8_11 = Mem8;
 }
-op:"SRS" ac8_11, Mem8 is Mem8 & ac8_11 & op11_16=0b00101 {
+op:"SRS" Mem8, ac8_11 is Mem8 & ac8_11 & op11_16=0b00101 {
 	Mem8 = ac8_11;
 }
 
@@ -1012,11 +1012,11 @@ ext_opp:xax4_6, xacm0 is xacm0 & xop1=0 & xop2_4=3 & xax4_6 & xop6_8=2 {
 }
 
 ext_opc:"S"                is xar0_2 & xop2=0 & xac3_5 & xop5=1 & xop6_8=0 {}
-ext_opp:xac3_5, "@"^xar0_2 is xar0_2 & xop2=0 & xac3_5 & xop5=1 & xop6_8=0 { *:2 xar0_2 = xac3_5; xar0_2 = xar0_2 + 1; }
+ext_opp:"@"^xar0_2, xac3_5 is xar0_2 & xop2=0 & xac3_5 & xop5=1 & xop6_8=0 { *:2 xar0_2 = xac3_5; xar0_2 = xar0_2 + 1; }
 
 # xar0_2 and xix0_2 are the same bits in the instruction.  The manual doesn't show xix0_2, but I've included it in the disassembly.
 ext_opc:"SN"                       is xar0_2 & xop2=1 & xac3_5 & xop5=1 & xop6_8=0 & xix0_2 {}
-ext_opp:xac3_5, "@"^xar0_2, xix0_2 is xar0_2 & xop2=1 & xac3_5 & xop5=1 & xop6_8=0 & xix0_2 { *:2 xar0_2 = xac3_5; xar0_2 = xar0_2 + xix0_2; }
+ext_opp:"@"^xar0_2, xac3_5, xix0_2 is xar0_2 & xop2=1 & xac3_5 & xop5=1 & xop6_8=0 & xix0_2 { *:2 xar0_2 = xac3_5; xar0_2 = xar0_2 + xix0_2; }
 
 ext_opc:"SL"          is xacm0 & xop1=1 & xop2_4=0 & xax4_6 & xop6_8=2 {}
 ext_opp:xax4_6, xacm0 is xacm0 & xop1=1 & xop2_4=0 & xax4_6 & xop6_8=2 {
