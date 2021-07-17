@@ -163,7 +163,7 @@ attach variables [ reg0_5 reg5_10 ] [
 	ac0.h ac1.h
 	config sr
 	prod.l prod.m1 prod.h prod.m2
-	ax0.l ax0.h ax1.l ax1.h
+	ax0.l ax1.l ax0.h ax1.h
 	ac0.l ac1.l ac0.m ac1.m
 ];
 
@@ -175,7 +175,7 @@ attach variables [ reg5_8 ] [ ar0 ar1 ar2 ar3 ix0 ix1 ix2 ix3 ]; # TODO: This is
 attach variables [ acm8 ] [ ac0.m ac1.m ]; # Middle of 40-bit accumulators
 attach variables [ acf8 ] [ ac0 ac1 ]; # Full 40-bit accumulators
 attach variables [ acs8 ] [ acs0 acs1 ]; # 24 bits of 40-bit accumulators
-attach variables [ ac8_11 ] [ ax0.l ax0.h ax1.l ax1.h ac0.l ac1.l ac0.m ac1.m ]; # 3-bit field referring to a register starting at 0x18 (ax0.l)
+attach variables [ ac8_11 ] [ ax0.l ax1.h ax0.h ax1.h ac0.l ac1.l ac0.m ac1.m ]; # 3-bit field referring to a register starting at 0x18 (ax0.l)
 
 @ifdef USE_REAL_SR_REGISTER
 # Offset by 6
@@ -233,7 +233,7 @@ attach variables [ aacf0_other ] [ ac0 ac1 ];
 attach variables [ aacs0 ] [ acs0 acs1 ];
 attach variables [ aaxh0 aaxh1 aaxh3 aaxh4 ] [ ax0.h ax1.h ];
 attach variables [ aaxl0 aaxl1 aaxl3 ] [ ax0.l ax1.l ];
-attach variables [ aax1_2 ] [ ax0.l ax0.h ax1.l ax1.h ]; # 2-bit field referring to a register starting at 0x18 (ax0.l)
+attach variables [ aax1_2 ] [ ax0.l ax1.l ax0.h ax1.h ]; # 2-bit field referring to a register starting at 0x18 (ax0.l)
 attach variables [ aaxf1 ] [ ax0 ax1 ];
 
 attach variables [ aax0lh1 aax0lh4 ] [ ax0.l ax0.h ];
@@ -267,8 +267,8 @@ define token xopbyte (8)
 
 attach variables [ xar0_2 ] [ ar0 ar1 ar2 ar3 ];
 attach variables [ xix0_2 ] [ ix0 ix1 ix2 ix3 ];
-attach variables [ xac3_6 ] [ ax0.l ax0.h ax1.l ax1.h ac0.l ac1.l ac0.m ac1.m ]; # 3-bit field referring to a register starting at 0x18 (ax0.l)
-attach variables [ xax2_4 xax4_6 ] [ ax0.l ax0.h ax1.l ax1.h ]; # 2-bit field referring to a register starting at 0x18 (ax0.l)
+attach variables [ xac3_6 ] [ ax0.l ax1.l ax0.h ax1.h ac0.l ac1.l ac0.m ac1.m ]; # 3-bit field referring to a register starting at 0x18 (ax0.l)
+attach variables [ xax2_4 xax4_6 ] [ ax0.l ax1.l ax0.h ax1.h ]; # 2-bit field referring to a register starting at 0x18 (ax0.l)
 attach variables [ xac0_2 xac3_5 xac4_6 ] [ ac0.l ac1.l ac0.m ac1.m ]; # 2-bit field referring to a register starting at 0x1C (ac0.l)
 attach variables [ xacm0 ] [ ac0.m ac1.m ];
 
