@@ -184,63 +184,58 @@ attach names srbit [ SR_LOGIC_ZERO SR_OVERFLOW_STICKY SR_100 SR_INT_ENABLE SR_40
 attach variables srbit [ SR_LOGIC_ZERO_ SR_OVERFLOW_STICKY_ SR_100_ SR_INT_ENABLE_ SR_400_ SR_EXT_INT_ENABLE_ SR_1000_ SR_MUL_MODIFY_ ];
 @endif
 
-# Opbyte for arithmetic instructions
-define token aopbyte (8)
-	aop0_8 = (0, 7)
-	aop4_8 = (4, 7)
-	aop5_8 = (5, 7)
-	aop2_4 = (2, 3)
-	aop1 = (1, 1)
-	aop3 = (3, 3)
-	aop0_3 = (0, 2)
-	aop1_4 = (1, 3)
-	aop1_3 = (1, 2)
+# GCDSP also supports extension instructions, where a 1-byte arithmetic
+# instruction is followed by a 1-byte extension instruction.
+# This is written as e.g. 46 51 ADDR'L ac0, ax1.h : ax0.h, @ar1 where
+# 46 corresponds to ADDR ac0, ax1.h and 51 corresponds to 'L ax0.h, @ar1.
+# SLEIGH lets us have two separate tokens which can form two tables that
+# are merged later, which could be used for implementing this.
+#
+# Unfortunately, the two-separate-bytes model is not accurate, as arithmetic
+# instructions with an opcode starting with 3 actually use 9 bytes, leaving
+# the remaining 7 for extension instructions.  Thus, a single merged token
+# is used instead.
+define token axopbyte (16)
+	# Opbyte for arithmetic instructions
+	aop0_8 = (8,  15) # (0, 7)
+	aop4_8 = (12, 15) # (4, 7)
+	aop5_8 = (13, 15) # (5, 7)
+	aop2_4 = (10, 11) # (2, 3)
+	aop1   = (9,  9)  # (1, 1)
+	aop3   = (11, 11) # (3, 3)
+	aop0_3 = (8,  10) # (0, 2)
+	aop1_4 = (9,  11) # (1, 3)
+	aop1_3 = (9,  10) # (1, 2)
 
-	aacl0 = (0, 0) # Low part of 40-bit accumulator
+	aacl0 = (8, 8) # (0, 0) # Low part of 40-bit accumulator
 
-	aacm0 = (0, 0) # Middle of 40-bit accumulator
-	aacm1 = (1, 1) # Middle of 40-bit accumulator
-	aacm0_other = (0, 0) # Middle of 40-bit accumulator, backwards
-	aacm4 = (4, 4) # Middle of 40-bit accumulator
+	aacm0 = (8, 8) # (0, 0) # Middle of 40-bit accumulator
+	aacm1 = (9, 9) # (1, 1) # Middle of 40-bit accumulator
+	aacm0_other = (8, 8) # (0, 0) # Middle of 40-bit accumulator, backwards
+	aacm4 = (12, 12) # (4, 4) # Middle of 40-bit accumulator
 
-	aacf0 = (0, 0) # Full 40 bits of an accumulator
-	aacf0_other = (0, 0) # Full 40 bits of an accumulator, backwards
-	aacf3 = (3, 3) # Full 40 bits of an accumulator
+	aacf0 = (8, 8) # (0, 0) # Full 40 bits of an accumulator
+	aacf0_other = (8, 8) # (0, 0) # Full 40 bits of an accumulator, backwards
+	aacf3 = (11, 11) # (3, 3) # Full 40 bits of an accumulator
 
-	aacs0 = (0, 0) # 24 bits of a 40-bit accumulator
+	aacs0 = (8, 8) # (0, 0) # 24 bits of a 40-bit accumulator
 
-	aaxh0 = (0, 0) # High bits of 32-bit accumulator
-	aaxh1 = (1, 1) # High bits of 32-bit accumulator
-	aaxh3 = (3, 3) # High bits of 32-bit accumulator
-	aaxh4 = (4, 4) # High bits of 32-bit accumulator
-	aaxl0 = (0, 0) # Low bits of 32-bit accumulator
-	aaxl1 = (1, 1) # Low bits of 32-bit accumulator
-	aaxl3 = (3, 3) # Low bits of 32-bit accumulator
-	aaxf1 = (1, 1) # Full 32 bits of an accumulator
-	aax1_2 = (1, 2) # 32-bit accumulator
+	aaxh0 = (8,  8)  # (0, 0) # High bits of 32-bit accumulator
+	aaxh1 = (9,  9)  # (1, 1) # High bits of 32-bit accumulator
+	aaxh3 = (11, 11) # (3, 3) # High bits of 32-bit accumulator
+	aaxh4 = (12, 12) # (4, 4) # High bits of 32-bit accumulator
+	aaxl0 = (8,  8)  # Low bits of 32-bit accumulator
+	aaxl1 = (9,  9)  # Low bits of 32-bit accumulator
+	aaxl3 = (11, 11) # Low bits of 32-bit accumulator
+	aaxf1 = (9,  9)  # Full 32 bits of an accumulator
+	aax1_2 = (9, 10) # (1, 2) # 32-bit accumulator
 
-	aax0lh1 = (1, 1) # Either ax0.l or ax0.h
-	aax0lh4 = (4, 4) # Either ax0.l or ax0.h
-	aax1lh0 = (0, 0) # Either ax1.l or ax1.h
-	aax1lh3 = (3, 3) # Either ax1.l or ax1.h
-;
+	aax0lh1 = (9,  9)  # (1, 1) # Either ax0.l or ax0.h
+	aax0lh4 = (12, 12) # (4, 4) # Either ax0.l or ax0.h
+	aax1lh0 = (8,  8)  # (0, 0) # Either ax1.l or ax1.h
+	aax1lh3 = (11, 11) # (3, 3) # Either ax1.l or ax1.h
 
-attach variables [ aacl0 ] [ ac0.l ac1.l ];
-attach variables [ aacm0 aacm1 aacm4 ] [ ac0.m ac1.m ];
-attach variables [ aacm0_other ] [ ac1.m ac0.m ];
-attach variables [ aacf0 aacf3 ] [ ac0 ac1 ];
-attach variables [ aacf0_other ] [ ac1 ac0 ];
-attach variables [ aacs0 ] [ acs0 acs1 ];
-attach variables [ aaxh0 aaxh1 aaxh3 aaxh4 ] [ ax0.h ax1.h ];
-attach variables [ aaxl0 aaxl1 aaxl3 ] [ ax0.l ax1.l ];
-attach variables [ aax1_2 ] [ ax0.l ax1.l ax0.h ax1.h ]; # 2-bit field referring to a register starting at 0x18 (ax0.l)
-attach variables [ aaxf1 ] [ ax0 ax1 ];
-
-attach variables [ aax0lh1 aax0lh4 ] [ ax0.l ax0.h ];
-attach variables [ aax1lh0 aax1lh3 ] [ ax1.l ax1.h ];
-
-# Opbyte for extension instructions
-define token xopbyte (8)
+	# Opbyte for extension instructions
 	xop0_2 = (0, 1)
 	xop0_8 = (0, 7)
 	xop4_8 = (4, 7)
@@ -265,6 +260,22 @@ define token xopbyte (8)
 	xax1lh3 = (3, 3) # Either ax1.l or ax1.h
 ;
 
+# Variables for arithmetic opcodes
+attach variables [ aacl0 ] [ ac0.l ac1.l ];
+attach variables [ aacm0 aacm1 aacm4 ] [ ac0.m ac1.m ];
+attach variables [ aacm0_other ] [ ac1.m ac0.m ];
+attach variables [ aacf0 aacf3 ] [ ac0 ac1 ];
+attach variables [ aacf0_other ] [ ac1 ac0 ];
+attach variables [ aacs0 ] [ acs0 acs1 ];
+attach variables [ aaxh0 aaxh1 aaxh3 aaxh4 ] [ ax0.h ax1.h ];
+attach variables [ aaxl0 aaxl1 aaxl3 ] [ ax0.l ax1.l ];
+attach variables [ aax1_2 ] [ ax0.l ax1.l ax0.h ax1.h ]; # 2-bit field referring to a register starting at 0x18 (ax0.l)
+attach variables [ aaxf1 ] [ ax0 ax1 ];
+
+attach variables [ aax0lh1 aax0lh4 ] [ ax0.l ax0.h ];
+attach variables [ aax1lh0 aax1lh3 ] [ ax1.l ax1.h ];
+
+# Variables for extension opcodes
 attach variables [ xar0_2 ] [ ar0 ar1 ar2 ar3 ];
 attach variables [ xix0_2 ] [ ix0 ix1 ix2 ix3 ];
 attach variables [ xac3_6 ] [ ax0.l ax1.l ax0.h ax1.h ac0.l ac1.l ac0.m ac1.m ]; # 3-bit field referring to a register starting at 0x18 (ax0.l)
@@ -1100,10 +1111,10 @@ ext_opc:"LD2NM"           is xop0_2=3 & xax0lh2 & xax1lh3 & xop4_6=3 & xop6_8=3 
 ext_opp:xax0lh2, xax1lh3 is xop0_2=3 & xax0lh2 & xax1lh3 & xop4_6=3 & xop6_8=3 unimpl
 
 # Combine arithmetic ops and extension ops
-op:^a_opc^"'"^ext_opc a_opp ":" ext_opp is a_opc & a_opp; ext_opc & ext_opp { build a_opp; build ext_opp; }
+op:^a_opc^"'"^ext_opc a_opp ":" ext_opp is a_opc & a_opp & ext_opc & ext_opp { build a_opp; build ext_opp; }
 
 # Although the manual doesn't mention it, if the extension opcode is set to 0, it seems like it's a NOP.
-op:^a_opc a_opp is a_opc & a_opp; xop0_8=0 { build a_opp; }
+op:^a_opc a_opp is a_opc & a_opp & xop0_8=0 { build a_opp; }
 
 LoopSkipAddrWrapper: loopskipaddr is loopskipaddr { export *[inst]:2 loopskipaddr; }
 LoopJumpBackAddrWrapper: loopjumpbackaddr is loopjumpbackaddr { export *[inst]:2 loopjumpbackaddr; }
