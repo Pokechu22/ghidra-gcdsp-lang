@@ -229,7 +229,7 @@ attach variables [ aacl0 ] [ ac0.l ac1.l ];
 attach variables [ aacm0 aacm1 aacm4 ] [ ac0.m ac1.m ];
 attach variables [ aacm0_other ] [ ac1.m ac0.m ];
 attach variables [ aacf0 aacf3 ] [ ac0 ac1 ];
-attach variables [ aacf0_other ] [ ac0 ac1 ];
+attach variables [ aacf0_other ] [ ac1 ac0 ];
 attach variables [ aacs0 ] [ acs0 acs1 ];
 attach variables [ aaxh0 aaxh1 aaxh3 aaxh4 ] [ ax0.h ax1.h ];
 attach variables [ aaxl0 aaxl1 aaxl3 ] [ ax0.l ax1.l ];
