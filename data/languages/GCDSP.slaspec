@@ -175,7 +175,7 @@ attach variables [ reg5_8 ] [ ar0 ar1 ar2 ar3 ix0 ix1 ix2 ix3 ]; # TODO: This is
 attach variables [ acm8 ] [ ac0.m ac1.m ]; # Middle of 40-bit accumulators
 attach variables [ acf8 ] [ ac0 ac1 ]; # Full 40-bit accumulators
 attach variables [ acs8 ] [ acs0 acs1 ]; # 24 bits of 40-bit accumulators
-attach variables [ ac8_11 ] [ ax0.l ax1.h ax0.h ax1.h ac0.l ac1.l ac0.m ac1.m ]; # 3-bit field referring to a register starting at 0x18 (ax0.l)
+attach variables [ ac8_11 ] [ ax0.l ax1.l ax0.h ax1.h ac0.l ac1.l ac0.m ac1.m ]; # 3-bit field referring to a register starting at 0x18 (ax0.l)
 
 @ifdef USE_REAL_SR_REGISTER
 # Offset by 6
