@@ -235,6 +235,9 @@ define token axopbyte (16)
 	aax1lh0 = (8,  8)  # (0, 0) # Either ax1.l or ax1.h
 	aax1lh3 = (11, 11) # (3, 3) # Either ax1.l or ax1.h
 
+	# Bit that belongs in xop but is used by arithmetic ops where aop4_8=0b0011
+	axbit = (7, 7)
+
 	# Opbyte for extension instructions
 	xop0_2 = (0, 1)
 	xop0_8 = (0, 7)
@@ -614,38 +617,115 @@ op:"RTI" is op0_4=0b1111 & op4_8=0b1111 & op8_16=2 {
 # For instructions where multiple registers are handled from a single bit (e.g. aacm0 and aacf0 below), the duplicate are included
 # in both bit patterns, even though it is only meaningful in the a_opp table, to make it easy to verify that both patterns are the same.
 
-# TODO: Dolphin's DSPTables.cpp indicates that there's some extra dumbness that happens when aop4_8=0b0011:
+# Dolphin's DSPTables.cpp indicates that there's some extra dumbness that happens when aop4_8=0b0011:
 # The arithmetic opcode is 9 bits and the extension is 7!  Or in other words, things are a bit of a mess...
-a_opc:"XORR"       is aacm0 & aaxh1 & aop2_4=0 & aop4_8=0b0011 & aacf0 {}
-a_opp:aacm0, aaxh1 is aacm0 & aaxh1 & aop2_4=0 & aop4_8=0b0011 & aacf0 {
+a_opc:"XORR"       is aacm0 & aaxh1 & aop2_4=0 & aop4_8=0b0011 & axbit=0 & aacf0 {}
+a_opp:aacm0, aaxh1 is aacm0 & aaxh1 & aop2_4=0 & aop4_8=0b0011 & axbit=0 & aacf0 {
 	aacm0 = aacm0 ^ aaxh1;
 	FLAGS(aacf0);
 }
 
-a_opc:"ANDR"       is aacm0 & aaxh1 & aop2_4=1 & aop4_8=0b0011 & aacf0 {}
-a_opp:aacm0, aaxh1 is aacm0 & aaxh1 & aop2_4=1 & aop4_8=0b0011 & aacf0 {
+a_opc:"ANDR"       is aacm0 & aaxh1 & aop2_4=1 & aop4_8=0b0011 & axbit=0 & aacf0 {}
+a_opp:aacm0, aaxh1 is aacm0 & aaxh1 & aop2_4=1 & aop4_8=0b0011 & axbit=0 & aacf0 {
 	aacm0 = aacm0 & aaxh1;
 	FLAGS(aacf0);
 }
 
-a_opc:"ORR"        is aacm0 & aaxh1 & aop2_4=2 & aop4_8=0b0011 & aacf0 {}
-a_opp:aacm0, aaxh1 is aacm0 & aaxh1 & aop2_4=2 & aop4_8=0b0011 & aacf0 {
+a_opc:"ORR"        is aacm0 & aaxh1 & aop2_4=2 & aop4_8=0b0011 & axbit=0 & aacf0 {}
+a_opp:aacm0, aaxh1 is aacm0 & aaxh1 & aop2_4=2 & aop4_8=0b0011 & axbit=0 & aacf0 {
 	aacm0 = aacm0 | aaxh1;
 	FLAGS(aacf0);
 }
 
-a_opc:"ANDC"             is aacm0 & aop1=0 & aop2_4=3 & aop4_8=0b0011 & aacm0_other & aacf0 {}
-a_opp:aacm0, aacm0_other is aacm0 & aop1=0 & aop2_4=3 & aop4_8=0b0011 & aacm0_other & aacf0 {
+a_opc:"ANDC"             is aacm0 & aop1=0 & aop2_4=3 & aop4_8=0b0011 & axbit=0 & aacm0_other & aacf0 {}
+a_opp:aacm0, aacm0_other is aacm0 & aop1=0 & aop2_4=3 & aop4_8=0b0011 & axbit=0 & aacm0_other & aacf0 {
 	aacm0 = aacm0 & aacm0_other;
 	FLAGS(aacf0);
 }
 
-a_opc:"ORC"              is aacm0 & aop1=1 & aop2_4=3 & aop4_8=0b0011 & aacm0_other & aacf0 {}
-a_opp:aacm0, aacm0_other is aacm0 & aop1=1 & aop2_4=3 & aop4_8=0b0011 & aacm0_other & aacf0 {
+a_opc:"ORC"              is aacm0 & aop1=1 & aop2_4=3 & aop4_8=0b0011 & axbit=0 & aacm0_other & aacf0 {}
+a_opp:aacm0, aacm0_other is aacm0 & aop1=1 & aop2_4=3 & aop4_8=0b0011 & axbit=0 & aacm0_other & aacf0 {
 	aacm0 = aacm0 | aacm0_other;
 	FLAGS(aacf0);
 }
 
+a_opc:"XORC"             is aacm0 & aop1=0 & aop2_4=0 & aop4_8=0b0011 & axbit=1 & aacm0_other & aacf0 {}
+a_opp:aacm0, aacm0_other is aacm0 & aop1=0 & aop2_4=0 & aop4_8=0b0011 & axbit=1 & aacm0_other & aacf0 {
+	aacm0 = aacm0 ^ aacm0_other;
+	FLAGS(aacf0);
+}
+
+a_opc:"NOT" is aacm0 & aop1=1 & aop2_4=0 & aop4_8=0b0011 & axbit=1 & aacf0 {}
+a_opp:aacm0 is aacm0 & aop1=1 & aop2_4=0 & aop4_8=0b0011 & axbit=1 & aacf0 {
+	aacm0 = ~aacm0;
+	FLAGS(aacf0);
+}
+
+a_opc:"LSRNRX"     is aacf0 & aaxh1 & aop2_4=1 & aop4_8=0b0011 & axbit=1 {}
+a_opp:aacf0, aaxh1 is aacf0 & aaxh1 & aop2_4=1 & aop4_8=0b0011 & axbit=1 {
+	# Treated as a signed 7-bit field, like LSL/LSR
+	if (aaxh1[6,1] == 1) goto <rightshift>;
+
+	# left shift
+	aacf0 = aacf0 << aaxh1[0,6];
+	goto <done>;
+
+	<rightshift>
+	aacf0 = aacf0 >> aaxh1[0,6];
+
+	<done>
+	FLAGS(aacf0);
+}
+
+a_opc:"ASRNRX"     is aacf0 & aaxh1 & aop2_4=2 & aop4_8=0b0011 & axbit=1 {}
+a_opp:aacf0, aaxh1 is aacf0 & aaxh1 & aop2_4=2 & aop4_8=0b0011 & axbit=1 {
+	# Treated as a signed 7-bit field, like ASL/ASR
+	if (aaxh1[6,1] == 1) goto <rightshift>;
+
+	# left shift
+	aacf0 = aacf0 << aaxh1[0,6];
+	goto <done>;
+
+	<rightshift>
+	aacf0 = aacf0 s>> aaxh1[0,6];
+
+	<done>
+	FLAGS(aacf0);
+}
+
+a_opc:"LSRNR"            is aacf0 & aop1=0 & aop2_4=3 & aop4_8=0b0011 & axbit=1 & aacm0_other {}
+a_opp:aacf0, aacm0_other is aacf0 & aop1=0 & aop2_4=3 & aop4_8=0b0011 & axbit=1 & aacm0_other {
+	# Treated as a signed 7-bit field, like LSL/LSR
+	if (aacm0_other[6,1] == 1) goto <rightshift>;
+
+	# left shift
+	aacf0 = aacf0 << aacm0_other[0,6];
+	goto <done>;
+
+	<rightshift>
+	aacf0 = aacf0 >> aacm0_other[0,6];
+
+	<done>
+	FLAGS(aacf0);
+}
+
+a_opc:"ASRNR"            is aacf0 & aop1=1 & aop2_4=3 & aop4_8=0b0011 & axbit=1 & aacm0_other {}
+a_opp:aacf0, aacm0_other is aacf0 & aop1=1 & aop2_4=3 & aop4_8=0b0011 & axbit=1 & aacm0_other {
+	# Treated as a signed 7-bit field, like ASL/asr
+	if (aacm0_other[6,1] == 1) goto <rightshift>;
+
+	# left shift
+	aacf0 = aacf0 << aacm0_other[0,6];
+	goto <done>;
+
+	<rightshift>
+	aacf0 = aacf0 >> aacm0_other[0,6];
+
+	<done>
+	FLAGS(aacf0);
+}
+
+# Remaining arithmetic instructions, where aop4_8 != 0b0011:
 a_opc:"ADDR"        is aacf0 & aax1_2 & aop3=0 & aop4_8=0b0100 {}
 a_opp:aacf0, aax1_2 is aacf0 & aax1_2 & aop3=0 & aop4_8=0b0100 {
 	aacf0 = aacf0 + zext(aax1_2);  # TODO: Is this the right extension?
