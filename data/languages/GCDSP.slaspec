@@ -240,13 +240,13 @@ define token axopbyte (16)
 
 	# Opbyte for extension instructions
 	xop0_2 = (0, 1)
-	xop0_8 = (0, 7)
-	xop4_8 = (4, 7)
+	xop0_7 = (0, 6)
+	xop4_7 = (4, 6)
 	xop4_6 = (4, 5)
-	xop6_8 = (6, 7)
 	xop1   = (1, 1)
 	xop2   = (2, 2)
 	xop5   = (5, 5)
+	xop6   = (6, 6)
 	xop2_4 = (2, 3)
 
 	xar0_2 = (0, 1) # Addressing register
@@ -1046,95 +1046,99 @@ a_opp:aacf0   is aacf0 & aop1_4=0b111 & aop4_8=0b1111 {
 }
 
 # Define extension opcodes and opcode parameters.
+# We use two tables: ext_opc0 for bit 7 (axbit) being set to 0, and ext_opc1 for bit 7 being 1.
+# This is so that arithmetic opcodes with aop4_8=0b0011 can be implemented correctly;
+# they only have 7 bits of the extension opcode and treat the top bit as 0.
+
 # There is no extension instruction with xop2_4=0 and xop4_8=0.
 
-ext_opc:"DR"   is xar0_2 & xop2_4=1 & xop4_8=0  {}
-ext_opp:xar0_2 is xar0_2 & xop2_4=1 & xop4_8=0 { xar0_2 = xar0_2 - 1; }
+ext_opc0:"DR"   is xar0_2 & xop2_4=1 & xop4_7=0 {}
+ext_opp0:xar0_2 is xar0_2 & xop2_4=1 & xop4_7=0 { xar0_2 = xar0_2 - 1; }
 
-ext_opc:"IR"   is xar0_2 & xop2_4=2 & xop4_8=0  {}
-ext_opp:xar0_2 is xar0_2 & xop2_4=2 & xop4_8=0 { xar0_2 = xar0_2 + 1; }
-
-# xar0_2 and xix0_2 are the same bits in the instruction.  The manual doesn't show xix0_2, but I've included it in the disassembly.
-ext_opc:"NR"           is xar0_2 & xop2_4=3 & xop4_8=0 & xix0_2 {}
-ext_opp:xar0_2, xix0_2 is xar0_2 & xop2_4=3 & xop4_8=0 & xix0_2 { xar0_2 = xar0_2 + xix0_2; }
-
-ext_opc:"MV"           is xac0_2 & xax2_4 & xop4_8=1 {}
-ext_opp:xax2_4, xac0_2 is xac0_2 & xax2_4 & xop4_8=1 { xax2_4 = xac0_2; }
-
-ext_opc:"L"                is xar0_2 & xop2=0 & xac3_6 & xop6_8=1 {}
-ext_opp:xac3_6, "@"^xar0_2 is xar0_2 & xop2=0 & xac3_6 & xop6_8=1 { xac3_6 = *:2 xar0_2; xar0_2 = xar0_2 + 1; }
+ext_opc0:"IR"   is xar0_2 & xop2_4=2 & xop4_7=0 {}
+ext_opp0:xar0_2 is xar0_2 & xop2_4=2 & xop4_7=0 { xar0_2 = xar0_2 + 1; }
 
 # xar0_2 and xix0_2 are the same bits in the instruction.  The manual doesn't show xix0_2, but I've included it in the disassembly.
-ext_opc:"LN"                       is xar0_2 & xix0_2 & xop2=1 & xac3_6 & xop6_8=1 {}
-ext_opp:xac3_6, "@"^xar0_2, xix0_2 is xar0_2 & xix0_2 & xop2=1 & xac3_6 & xop6_8=1 { xac3_6 = *:2 xar0_2; xar0_2 = xar0_2 + xix0_2; }
+ext_opc0:"NR"           is xar0_2 & xop2_4=3 & xop4_7=0 & xix0_2 {}
+ext_opp0:xar0_2, xix0_2 is xar0_2 & xop2_4=3 & xop4_7=0 & xix0_2 { xar0_2 = xar0_2 + xix0_2; }
+
+ext_opc0:"MV"           is xac0_2 & xax2_4 & xop4_7=1 {}
+ext_opp0:xax2_4, xac0_2 is xac0_2 & xax2_4 & xop4_7=1 { xax2_4 = xac0_2; }
+
+ext_opc0:"L"                is xar0_2 & xop2=0 & xac3_6 & xop6=1 {}
+ext_opp0:xac3_6, "@"^xar0_2 is xar0_2 & xop2=0 & xac3_6 & xop6=1 { xac3_6 = *:2 xar0_2; xar0_2 = xar0_2 + 1; }
+
+# xar0_2 and xix0_2 are the same bits in the instruction.  The manual doesn't show xix0_2, but I've included it in the disassembly.
+ext_opc0:"LN"                       is xar0_2 & xix0_2 & xop2=1 & xac3_6 & xop6=1 {}
+ext_opp0:xac3_6, "@"^xar0_2, xix0_2 is xar0_2 & xix0_2 & xop2=1 & xac3_6 & xop6=1 { xac3_6 = *:2 xar0_2; xar0_2 = xar0_2 + xix0_2; }
 
 # 'LN and 'LS have the same encoding in the manual
 # I've assumed 01ddd1ss should instead be 10dd000s, to match the table and other 'LS variants
-ext_opc:"LS"          is xacm0 & xop1=0 & xop2_4=0 & xax4_6 & xop6_8=2 {}
-ext_opp:xax4_6, xacm0 is xacm0 & xop1=0 & xop2_4=0 & xax4_6 & xop6_8=2 {
+ext_opc1:"LS"          is xacm0 & xop1=0 & xop2_4=0 & xax4_6 & xop6=0 {}
+ext_opp1:xax4_6, xacm0 is xacm0 & xop1=0 & xop2_4=0 & xax4_6 & xop6=0 {
 	xax4_6 = *:2 ar0;
 	*:2 ar3 = xacm0;
 	ar0 = ar0 + 1;
 	ar3 = ar3 + 1;
 }
 
-ext_opc:"LSN"         is xacm0 & xop1=0 & xop2_4=1 & xax4_6 & xop6_8=2 {}
-ext_opp:xax4_6, xacm0 is xacm0 & xop1=0 & xop2_4=1 & xax4_6 & xop6_8=2 {
+ext_opc1:"LSN"         is xacm0 & xop1=0 & xop2_4=1 & xax4_6 & xop6=0 {}
+ext_opp1:xax4_6, xacm0 is xacm0 & xop1=0 & xop2_4=1 & xax4_6 & xop6=0 {
 	xax4_6 = *:2 ar0;
 	*:2 ar3 = xacm0;
 	ar0 = ar0 + ix0;
 	ar3 = ar3 + 1;
 }
 
-ext_opc:"LSM"         is xacm0 & xop1=0 & xop2_4=2 & xax4_6 & xop6_8=2 {}
-ext_opp:xax4_6, xacm0 is xacm0 & xop1=0 & xop2_4=2 & xax4_6 & xop6_8=2 {
+ext_opc1:"LSM"         is xacm0 & xop1=0 & xop2_4=2 & xax4_6 & xop6=0 {}
+ext_opp1:xax4_6, xacm0 is xacm0 & xop1=0 & xop2_4=2 & xax4_6 & xop6=0 {
 	xax4_6 = *:2 ar0;
 	*:2 ar3 = xacm0;
 	ar0 = ar0 + 1;
 	ar3 = ar3 + ix3;
 }
 
-ext_opc:"LSNM"        is xacm0 & xop1=0 & xop2_4=3 & xax4_6 & xop6_8=2 {}
-ext_opp:xax4_6, xacm0 is xacm0 & xop1=0 & xop2_4=3 & xax4_6 & xop6_8=2 {
+ext_opc1:"LSNM"        is xacm0 & xop1=0 & xop2_4=3 & xax4_6 & xop6=0 {}
+ext_opp1:xax4_6, xacm0 is xacm0 & xop1=0 & xop2_4=3 & xax4_6 & xop6=0 {
 	xax4_6 = *:2 ar0;
 	*:2 ar3 = xacm0;
 	ar0 = ar0 + ix0;
 	ar3 = ar3 + ix3;
 }
 
-ext_opc:"S"                is xar0_2 & xop2=0 & xac3_5 & xop5=1 & xop6_8=0 {}
-ext_opp:"@"^xar0_2, xac3_5 is xar0_2 & xop2=0 & xac3_5 & xop5=1 & xop6_8=0 { *:2 xar0_2 = xac3_5; xar0_2 = xar0_2 + 1; }
+ext_opc0:"S"                is xar0_2 & xop2=0 & xac3_5 & xop5=1 & xop6=0 {}
+ext_opp0:"@"^xar0_2, xac3_5 is xar0_2 & xop2=0 & xac3_5 & xop5=1 & xop6=0 { *:2 xar0_2 = xac3_5; xar0_2 = xar0_2 + 1; }
 
 # xar0_2 and xix0_2 are the same bits in the instruction.  The manual doesn't show xix0_2, but I've included it in the disassembly.
-ext_opc:"SN"                       is xar0_2 & xop2=1 & xac3_5 & xop5=1 & xop6_8=0 & xix0_2 {}
-ext_opp:"@"^xar0_2, xac3_5, xix0_2 is xar0_2 & xop2=1 & xac3_5 & xop5=1 & xop6_8=0 & xix0_2 { *:2 xar0_2 = xac3_5; xar0_2 = xar0_2 + xix0_2; }
+ext_opc0:"SN"                       is xar0_2 & xop2=1 & xac3_5 & xop5=1 & xop6=0 & xix0_2 {}
+ext_opp0:"@"^xar0_2, xac3_5, xix0_2 is xar0_2 & xop2=1 & xac3_5 & xop5=1 & xop6=0 & xix0_2 { *:2 xar0_2 = xac3_5; xar0_2 = xar0_2 + xix0_2; }
 
-ext_opc:"SL"          is xacm0 & xop1=1 & xop2_4=0 & xax4_6 & xop6_8=2 {}
-ext_opp:xacm0, xax4_6 is xacm0 & xop1=1 & xop2_4=0 & xax4_6 & xop6_8=2 {
+ext_opc1:"SL"          is xacm0 & xop1=1 & xop2_4=0 & xax4_6 & xop6=0 {}
+ext_opp1:xacm0, xax4_6 is xacm0 & xop1=1 & xop2_4=0 & xax4_6 & xop6=0 {
 	xax4_6 = *:2 ar0;
 	*:2 ar3 = xacm0;
 	ar0 = ar0 + 1;
 	ar3 = ar3 + 1;
 }
 
-ext_opc:"SLN"         is xacm0 & xop1=1 & xop2_4=1 & xax4_6 & xop6_8=2 {}
-ext_opp:xacm0, xax4_6 is xacm0 & xop1=1 & xop2_4=1 & xax4_6 & xop6_8=2 {
+ext_opc1:"SLN"         is xacm0 & xop1=1 & xop2_4=1 & xax4_6 & xop6=0 {}
+ext_opp1:xacm0, xax4_6 is xacm0 & xop1=1 & xop2_4=1 & xax4_6 & xop6=0 {
 	xax4_6 = *:2 ar0;
 	*:2 ar3 = xacm0;
 	ar0 = ar0 + ix0;
 	ar3 = ar3 + 1;
 }
 
-ext_opc:"SLM"         is xacm0 & xop1=1 & xop2_4=2 & xax4_6 & xop6_8=2 {}
-ext_opp:xacm0, xax4_6 is xacm0 & xop1=1 & xop2_4=2 & xax4_6 & xop6_8=2 {
+ext_opc1:"SLM"         is xacm0 & xop1=1 & xop2_4=2 & xax4_6 & xop6=0 {}
+ext_opp1:xacm0, xax4_6 is xacm0 & xop1=1 & xop2_4=2 & xax4_6 & xop6=0 {
 	xax4_6 = *:2 ar0;
 	*:2 ar3 = xacm0;
 	ar0 = ar0 + 1;
 	ar3 = ar3 + ix3;
 }
 
-ext_opc:"SLNM"        is xacm0 & xop1=1 & xop2_4=3 & xax4_6 & xop6_8=2 {}
-ext_opp:xacm0, xax4_6 is xacm0 & xop1=1 & xop2_4=3 & xax4_6 & xop6_8=2 {
+ext_opc1:"SLNM"        is xacm0 & xop1=1 & xop2_4=3 & xax4_6 & xop6=0 {}
+ext_opp1:xacm0, xax4_6 is xacm0 & xop1=1 & xop2_4=3 & xax4_6 & xop6=0 {
 	xax4_6 = *:2 ar0;
 	*:2 ar3 = xacm0;
 	ar0 = ar0 + ix0;
@@ -1143,32 +1147,32 @@ ext_opp:xacm0, xax4_6 is xacm0 & xop1=1 & xop2_4=3 & xax4_6 & xop6_8=2 {
 
 # The table mentions LD[NM|M|N] and LD2[NM|M|N] extension opcodes, but they aren't in the main manual.
 # The encoding is a guess based on Dolphin.  In particular xax0lh2 and xax1lh3 may be backwards.
-ext_opc:"LD"                     is xac0_2 & xax0lh2 & xax1lh3 & xop4_6=0 & xop6_8=3 {}
-ext_opp:xac0_2, xax0lh2, xax1lh3 is xac0_2 & xax0lh2 & xax1lh3 & xop4_6=0 & xop6_8=3 {
+ext_opc1:"LD"                     is xac0_2 & xax0lh2 & xax1lh3 & xop4_6=0 & xop6=1 {}
+ext_opp1:xac0_2, xax0lh2, xax1lh3 is xac0_2 & xax0lh2 & xax1lh3 & xop4_6=0 & xop6=1 {
 	xax0lh2 = *:2 xac0_2;
 	xax1lh3 = *:2 ar3;
 	xac0_2 = xac0_2 + 1;
 	ar3 = ar3 + 1;
 }
 
-ext_opc:"LDN"                    is xac0_2 & xax0lh2 & xax1lh3 & xop4_6=1 & xop6_8=3 {}
-ext_opp:xac0_2, xax0lh2, xax1lh3 is xac0_2 & xax0lh2 & xax1lh3 & xop4_6=1 & xop6_8=3 {
+ext_opc1:"LDN"                    is xac0_2 & xax0lh2 & xax1lh3 & xop4_6=1 & xop6=1 {}
+ext_opp1:xac0_2, xax0lh2, xax1lh3 is xac0_2 & xax0lh2 & xax1lh3 & xop4_6=1 & xop6=1 {
 	xax0lh2 = *:2 xac0_2;
 	xax1lh3 = *:2 ar3;
 	xac0_2 = xac0_2 + ix0;
 	ar3 = ar3 + 1;
 }
 
-ext_opc:"LDM"                    is xac0_2 & xax0lh2 & xax1lh3 & xop4_6=2 & xop6_8=3 {}
-ext_opp:xac0_2, xax0lh2, xax1lh3 is xac0_2 & xax0lh2 & xax1lh3 & xop4_6=2 & xop6_8=3 {
+ext_opc1:"LDM"                    is xac0_2 & xax0lh2 & xax1lh3 & xop4_6=2 & xop6=1 {}
+ext_opp1:xac0_2, xax0lh2, xax1lh3 is xac0_2 & xax0lh2 & xax1lh3 & xop4_6=2 & xop6=1 {
 	xax0lh2 = *:2 xac0_2;
 	xax1lh3 = *:2 ar3;
 	xac0_2 = xac0_2 + 1;
 	ar3 = ar3 + ix3;
 }
 
-ext_opc:"LDNM"                   is xac0_2 & xax0lh2 & xax1lh3 & xop4_6=3 & xop6_8=3 {}
-ext_opp:xac0_2, xax0lh2, xax1lh3 is xac0_2 & xax0lh2 & xax1lh3 & xop4_6=3 & xop6_8=3 {
+ext_opc1:"LDNM"                   is xac0_2 & xax0lh2 & xax1lh3 & xop4_6=3 & xop6=1 {}
+ext_opp1:xac0_2, xax0lh2, xax1lh3 is xac0_2 & xax0lh2 & xax1lh3 & xop4_6=3 & xop6=1 {
 	xax0lh2 = *:2 xac0_2;
 	xax1lh3 = *:2 ar3;
 	xac0_2 = xac0_2 + ix0;
@@ -1178,23 +1182,29 @@ ext_opp:xac0_2, xax0lh2, xax1lh3 is xac0_2 & xax0lh2 & xax1lh3 & xop4_6=3 & xop6
 # The table indicates that xop0_2=3 indicates LD2, but doesn't explain what that means.
 # Dolphin doesn't clearly distinguish it either.  It would mean that xac0_2 is ar3,
 # which would mean both would use ar3, but I don't know what that implies.
-ext_opc:"LD2"             is xop0_2=3 & xax0lh2 & xax1lh3 & xop4_6=0 & xop6_8=3 {}
-ext_opp:xax0lh2, xax1lh3 is xop0_2=3 & xax0lh2 & xax1lh3 & xop4_6=0 & xop6_8=3 unimpl
+ext_opc1:"LD2"             is xop0_2=3 & xax0lh2 & xax1lh3 & xop4_6=0 & xop6=1 {}
+ext_opp1:xax0lh2, xax1lh3 is xop0_2=3 & xax0lh2 & xax1lh3 & xop4_6=0 & xop6=1 unimpl
 
-ext_opc:"LD2N"            is xop0_2=3 & xax0lh2 & xax1lh3 & xop4_6=1 & xop6_8=3 {}
-ext_opp:xax0lh2, xax1lh3 is xop0_2=3 & xax0lh2 & xax1lh3 & xop4_6=1 & xop6_8=3 unimpl
+ext_opc1:"LD2N"            is xop0_2=3 & xax0lh2 & xax1lh3 & xop4_6=1 & xop6=1 {}
+ext_opp1:xax0lh2, xax1lh3 is xop0_2=3 & xax0lh2 & xax1lh3 & xop4_6=1 & xop6=1 unimpl
 
-ext_opc:"LD2M"            is xop0_2=3 & xax0lh2 & xax1lh3 & xop4_6=2 & xop6_8=3 {}
-ext_opp:xax0lh2, xax1lh3 is xop0_2=3 & xax0lh2 & xax1lh3 & xop4_6=2 & xop6_8=3 unimpl
+ext_opc1:"LD2M"            is xop0_2=3 & xax0lh2 & xax1lh3 & xop4_6=2 & xop6=1 {}
+ext_opp1:xax0lh2, xax1lh3 is xop0_2=3 & xax0lh2 & xax1lh3 & xop4_6=2 & xop6=1 unimpl
 
-ext_opc:"LD2NM"           is xop0_2=3 & xax0lh2 & xax1lh3 & xop4_6=3 & xop6_8=3 {}
-ext_opp:xax0lh2, xax1lh3 is xop0_2=3 & xax0lh2 & xax1lh3 & xop4_6=3 & xop6_8=3 unimpl
+ext_opc1:"LD2NM"           is xop0_2=3 & xax0lh2 & xax1lh3 & xop4_6=3 & xop6=1 {}
+ext_opp1:xax0lh2, xax1lh3 is xop0_2=3 & xax0lh2 & xax1lh3 & xop4_6=3 & xop6=1 unimpl
+
+ext_opc:ext_opc0 is ext_opc0 & (axbit=0 | aop4_8=0b0011) {}
+ext_opp:ext_opp0 is ext_opp0 & (axbit=0 | aop4_8=0b0011) { build ext_opp0; }
+
+ext_opc:ext_opc1 is ext_opc1 & (axbit=1 & aop4_8!=0b0011) {}
+ext_opp:ext_opp1 is ext_opp1 & (axbit=1 & aop4_8!=0b0011) { build ext_opp1; }
 
 # Combine arithmetic ops and extension ops
 op:^a_opc^"'"^ext_opc a_opp ":" ext_opp is a_opc & a_opp & ext_opc & ext_opp { build a_opp; build ext_opp; }
 
 # Although the manual doesn't mention it, if the extension opcode is set to 0, it seems like it's a NOP.
-op:^a_opc a_opp is a_opc & a_opp & xop0_8=0 { build a_opp; }
+op:^a_opc a_opp is a_opc & a_opp & (axbit=0 | aop4_8=0b0011) & xop0_7=0 { build a_opp; }
 
 LoopSkipAddrWrapper: loopskipaddr is loopskipaddr { export *[inst]:2 loopskipaddr; }
 LoopJumpBackAddrWrapper: loopjumpbackaddr is loopjumpbackaddr { export *[inst]:2 loopjumpbackaddr; }
