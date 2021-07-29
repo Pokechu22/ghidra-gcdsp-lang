@@ -259,8 +259,15 @@ define token axopbyte (16)
 	xac4_6 = (4, 5) # 40-bit accumulator
 	xacm0  = (0, 0) # Either ac0.m or ac1.m
 
-	xax0lh2 = (2, 2) # Either ax0.l or ax0.h
-	xax1lh3 = (3, 3) # Either ax1.l or ax1.h
+	xax0lh5 = (5, 5) # Either ax0.l or ax0.h
+	xax1lh4 = (4, 4) # Either ax1.l or ax1.h
+
+	xax4  = (4, 4) # Either ax0 or ax1
+	xaxl4 = (4, 4) # Either ax0.l or ax1.l
+	xaxh4 = (4, 4) # Either ax0.h or ax1.h
+
+	xar5 = (5, 5) # Either ar0 or ar1; ar2 and ar3 are not selectable
+	xix5 = (5, 5) # Either ix0 or ix1
 ;
 
 # Variables for arithmetic opcodes
@@ -286,8 +293,15 @@ attach variables [ xax2_4 xax4_6 ] [ ax0.l ax1.l ax0.h ax1.h ]; # 2-bit field re
 attach variables [ xac0_2 xac3_5 xac4_6 ] [ ac0.l ac1.l ac0.m ac1.m ]; # 2-bit field referring to a register starting at 0x1C (ac0.l)
 attach variables [ xacm0 ] [ ac0.m ac1.m ];
 
-attach variables [ xax0lh2 ] [ ax0.l ax0.h ];
-attach variables [ xax1lh3 ] [ ax1.l ax1.h ];
+attach variables [ xax0lh5 ] [ ax0.l ax0.h ];
+attach variables [ xax1lh4 ] [ ax1.l ax1.h ];
+
+attach variables [ xax4  ] [ ax0   ax1   ];
+attach variables [ xaxl4 ] [ ax0.l ax1.l ];
+attach variables [ xaxh4 ] [ ax0.h ax1.h ];
+
+attach variables [ xar5 ] [ ar0 ar1 ];
+attach variables [ xix5 ] [ ix0 ix1 ];
 
 macro FLAGS(result) {
 	$(SR_CARRY) = 0;  # TODO: Carry
@@ -1150,54 +1164,80 @@ ext_opp1:xacm0, xax4_6 is xacm0 & xop1=1 & xop2_4=3 & xax4_6 & xop6=0 {
 	ar3 = ar3 + ix3;
 }
 
-# The table mentions LD[NM|M|N] and LD2[NM|M|N] extension opcodes, but they aren't in the main manual.
-# The encoding is a guess based on Dolphin.  In particular xax0lh2 and xax1lh3 may be backwards.
-ext_opc1:"LD"                     is xac0_2 & xax0lh2 & xax1lh3 & xop4_6=0 & xop6=1 {}
-ext_opp1:xac0_2, xax0lh2, xax1lh3 is xac0_2 & xax0lh2 & xax1lh3 & xop4_6=0 & xop6=1 {
-	xax0lh2 = *:2 xac0_2;
-	xax1lh3 = *:2 ar3;
-	xac0_2 = xac0_2 + 1;
+# TODO: These aren't properly documented in the manual (though they do appear in the table at the end)
+# The LDAX variants are called LD2 in the manual.  LDAX is dolphin's name.
+# LD loads to both AX0 and AX1, with the instruction choosing separately for AX0.l vs AX0.h and AX1.l vs AX1.h.
+# ax0 is set to the memory value pointed by a choice of AR0/1/2, while ax1 is set to the memory value pointed by AR3.
+# AR3 cannot be used for the first value, as that encodes LDAX instead.  The address registers are increased by 1 or
+# the corresponding index register (depending on M/N like the other extension instructions).
+# Unlike what the manual says, the MN selection is bits 2 and 3.
+ext_opc1:"LD"                         is xar0_2 & xop2_4=0 & xax1lh4 & xax0lh5 & xop6=1 {}
+ext_opp1:xax0lh5, xax1lh4, "@"^xar0_2 is xar0_2 & xop2_4=0 & xax1lh4 & xax0lh5 & xop6=1 {
+	xax0lh5 = *:2 xar0_2;
+	xax1lh4 = *:2 ar3;
+	xar0_2 = xar0_2 + 1;
 	ar3 = ar3 + 1;
 }
 
-ext_opc1:"LDN"                    is xac0_2 & xax0lh2 & xax1lh3 & xop4_6=1 & xop6=1 {}
-ext_opp1:xac0_2, xax0lh2, xax1lh3 is xac0_2 & xax0lh2 & xax1lh3 & xop4_6=1 & xop6=1 {
-	xax0lh2 = *:2 xac0_2;
-	xax1lh3 = *:2 ar3;
-	xac0_2 = xac0_2 + ix0;
+# LDAX sets ar0.h or ar1.h to the memory value pointed by either AR0 or AR1, and
+# ar0.l or ar1.l to the memory value pointed by AR3.  The choice is either both
+# ar0.h and ar0.l or ar1.h and ar1.l.  AR2 cannot be used.  M/N exist like normal.
+ext_opc1:"LDAX"         is xop0_2=3 & xop2_4=0 & xax4 & xar5 & xop6=1 & xaxl4 & xaxh4 {}
+ext_opp1:xax4, "@"^xar5 is xop0_2=3 & xop2_4=0 & xax4 & xar5 & xop6=1 & xaxl4 & xaxh4 {
+	xaxh4 = *:2 xar5;
+	xaxl4 = *:2 ar3;
+	xar5 = xar5 + 1;
 	ar3 = ar3 + 1;
 }
 
-ext_opc1:"LDM"                    is xac0_2 & xax0lh2 & xax1lh3 & xop4_6=2 & xop6=1 {}
-ext_opp1:xac0_2, xax0lh2, xax1lh3 is xac0_2 & xax0lh2 & xax1lh3 & xop4_6=2 & xop6=1 {
-	xax0lh2 = *:2 xac0_2;
-	xax1lh3 = *:2 ar3;
-	xac0_2 = xac0_2 + 1;
+# xar0_2 and xix0_2 are the same bits in the instruction.  I haven't included it here (or in LDNM).
+ext_opc1:"LDN"                        is xar0_2 & xop2_4=1 & xax1lh4 & xax0lh5 & xop6=1 & xix0_2 {}
+ext_opp1:xax0lh5, xax1lh4, "@"^xar0_2 is xar0_2 & xop2_4=1 & xax1lh4 & xax0lh5 & xop6=1 & xix0_2 {
+	xax0lh5 = *:2 xar0_2;
+	xax1lh4 = *:2 ar3;
+	xar0_2 = xar0_2 + xix0_2;
+	ar3 = ar3 + 1;
+}
+
+ext_opc1:"LDAXN"        is xop0_2=3 & xop2_4=1 & xax4 & xar5 & xop6=1 & xaxl4 & xaxh4 & xix5 {}
+ext_opp1:xax4, "@"^xar5 is xop0_2=3 & xop2_4=1 & xax4 & xar5 & xop6=1 & xaxl4 & xaxh4 & xix5 {
+	xaxh4 = *:2 xar5;
+	xaxl4 = *:2 ar3;
+	xar5 = xar5 + xix5;
+	ar3 = ar3 + 1;
+}
+
+ext_opc1:"LDM"                        is xar0_2 & xop2_4=2 & xax1lh4 & xax0lh5 & xop6=1 {}
+ext_opp1:xax0lh5, xax1lh4, "@"^xar0_2 is xar0_2 & xop2_4=2 & xax1lh4 & xax0lh5 & xop6=1 {
+	xax0lh5 = *:2 xar0_2;
+	xax1lh4 = *:2 ar3;
+	xar0_2 = xar0_2 + 1;
 	ar3 = ar3 + ix3;
 }
 
-ext_opc1:"LDNM"                   is xac0_2 & xax0lh2 & xax1lh3 & xop4_6=3 & xop6=1 {}
-ext_opp1:xac0_2, xax0lh2, xax1lh3 is xac0_2 & xax0lh2 & xax1lh3 & xop4_6=3 & xop6=1 {
-	xax0lh2 = *:2 xac0_2;
-	xax1lh3 = *:2 ar3;
-	xac0_2 = xac0_2 + ix0;
+ext_opc1:"LDAXM"        is xop0_2=3 & xop2_4=2 & xax4 & xar5 & xop6=1 & xaxl4 & xaxh4 {}
+ext_opp1:xax4, "@"^xar5 is xop0_2=3 & xop2_4=2 & xax4 & xar5 & xop6=1 & xaxl4 & xaxh4 {
+	xaxh4 = *:2 xar5;
+	xaxl4 = *:2 ar3;
+	xar5 = xar5 + 1;
 	ar3 = ar3 + ix3;
 }
 
-# The table indicates that xop0_2=3 indicates LD2, but doesn't explain what that means.
-# Dolphin doesn't clearly distinguish it either.  It would mean that xac0_2 is ar3,
-# which would mean both would use ar3, but I don't know what that implies.
-ext_opc1:"LD2"             is xop0_2=3 & xax0lh2 & xax1lh3 & xop4_6=0 & xop6=1 {}
-ext_opp1:xax0lh2, xax1lh3 is xop0_2=3 & xax0lh2 & xax1lh3 & xop4_6=0 & xop6=1 unimpl
+ext_opc1:"LDNM"                       is xar0_2 & xop2_4=3 & xax1lh4 & xax0lh5 & xop6=1 & xix0_2 {}
+ext_opp1:xax0lh5, xax1lh4, "@"^xar0_2 is xar0_2 & xop2_4=3 & xax1lh4 & xax0lh5 & xop6=1 & xix0_2 {
+	xax0lh5 = *:2 xar0_2;
+	xax1lh4 = *:2 ar3;
+	xar0_2 = xar0_2 + xix0_2;
+	ar3 = ar3 + ix3;
+}
 
-ext_opc1:"LD2N"            is xop0_2=3 & xax0lh2 & xax1lh3 & xop4_6=1 & xop6=1 {}
-ext_opp1:xax0lh2, xax1lh3 is xop0_2=3 & xax0lh2 & xax1lh3 & xop4_6=1 & xop6=1 unimpl
-
-ext_opc1:"LD2M"            is xop0_2=3 & xax0lh2 & xax1lh3 & xop4_6=2 & xop6=1 {}
-ext_opp1:xax0lh2, xax1lh3 is xop0_2=3 & xax0lh2 & xax1lh3 & xop4_6=2 & xop6=1 unimpl
-
-ext_opc1:"LD2NM"           is xop0_2=3 & xax0lh2 & xax1lh3 & xop4_6=3 & xop6=1 {}
-ext_opp1:xax0lh2, xax1lh3 is xop0_2=3 & xax0lh2 & xax1lh3 & xop4_6=3 & xop6=1 unimpl
+ext_opc1:"LDAXNM"       is xop0_2=3 & xop2_4=3 & xax4 & xar5 & xop6=1 & xaxl4 & xaxh4 & xix5 {}
+ext_opp1:xax4, "@"^xar5 is xop0_2=3 & xop2_4=3 & xax4 & xar5 & xop6=1 & xaxl4 & xaxh4 & xix5 {
+	xaxh4 = *:2 xar5;
+	xaxl4 = *:2 ar3;
+	xar5 = xar5 + xix5;
+	ar3 = ar3 + ix3;
+}
 
 ext_opc:ext_opc0 is ext_opc0 & (axbit=0 | aop4_8=0b0011) {}
 ext_opp:ext_opp0 is ext_opp0 & (axbit=0 | aop4_8=0b0011) { build ext_opp0; }
