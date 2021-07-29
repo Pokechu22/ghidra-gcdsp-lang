@@ -927,7 +927,12 @@ a_opp:aax0lh4, aax1lh3 is aop0_3=0b000 & aax1lh3 & aax0lh4 & aop5_8=0b101 & aaxh
 	prod = sext(aax0lh4) * sext(aax1lh3);
 }
 
-# 1010r001 is marked as ???
+# TODO: Not listed in the manual
+a_opc:"ABS" is aop0_3=0b001 & aacf3 & aop4_8=0b1010 {}
+a_opp:aacf3 is aop0_3=0b001 & aacf3 & aop4_8=0b1010 {
+	aacf3 = abs(aacf3);
+	FLAGS(aacf3);
+}
 
 a_opc:"TST" is aop0_3=0b001 & aacf3 & aop4_8=0b1011 {}
 a_opp:aacf3 is aop0_3=0b001 & aacf3 & aop4_8=0b1011 {
