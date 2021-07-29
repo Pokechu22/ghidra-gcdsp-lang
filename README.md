@@ -37,3 +37,5 @@ Unfortunately DSP data comes in multiple files, which makes the import process a
 ## Manuals
 
 The only manual is the [GameCube DSP User's Manual](https://github.com/dolphin-emu/dolphin/tree/master/docs/DSP/GameCube_DSP_Users_Manual), which is unfortunately incomplete.  I plan on adding to it with information I've found while working on this.
+
+There is also documentation in Dolphin's [DSPTables.cpp](https://github.com/dolphin-emu/dolphin/blob/master/Source/Core/Core/DSP/DSPTables.cpp) and in [Dolphin's interpreter](https://github.com/dolphin-emu/dolphin/tree/master/Source/Core/Core/DSP/Interpreter).  However, DSPTables is a bit confusing to read with regards to instruction decoding, and some of the interpreter comments (e.g. those for `'LD`) are incorrect.  The code itself can also be used as a reference.
