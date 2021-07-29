@@ -20,7 +20,7 @@ define register offset=0x18 size=2 [ st0 st1 st2 st3 ]; # Stack-related register
 #define register offset=0x20 size=2 [ ac0.h ac1.h ]; # 40-bit accumulators
 define register offset=0x24 size=2 [ cr sr ];
 define register offset=0x28 size=2 [ prod.l prod.m1 prod.h prod.m2 ]; # Product
-#define register offset=0x30 size=2 [ ax0.l ax1.l ax0.l ax1.h ]; # 32-bit accumulators
+#define register offset=0x30 size=2 [ ax0.l ax1.l ax0.h ax1.h ]; # 32-bit accumulators
 #define register offset=0x38 size=2 [ ac0.l ac1.l ac0.m ac1.m ]; # 40-bit accumulators
 
 # Fake versions of the accumulator registers to make emulating them reasonable
