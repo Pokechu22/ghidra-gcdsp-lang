@@ -133,6 +133,8 @@ define token opbyte (16)
 # i.e. with just { export imm8; } setting a register to Imm8 apepars to set it to 0, while setting it to imm8 works fine.
 # There is a warning for this, though it's not obvious: "Table 'Imm8' exports size 0".
 Imm6: "#"^imm6 is imm6 { export *[const]:2 imm6; }
+# See comment by LSR
+Imm6Right: "#"^rightshiftvalue is imm6 [ rightshiftvalue = (64 - imm6); ] { export *[const]:2 rightshiftvalue; }
 
 Imm8: "#"^imm8 is imm8 { export *[const]:2 imm8; }
 SImm8: "#"^simm8 is simm8 { export *[const]:2 simm8; }
@@ -540,15 +542,18 @@ op:"SBSET" srbit is srbit & op3_8=0 & op8_16=0b00010011 {
 op:"LSL" acf8, Imm6 is Imm6 & op6_8=0b00 & acf8 & op9_16=0b0001010 {
 	acf8 = acf8 << Imm6;
 }
-op:"LSR" acf8, Imm6 is Imm6 & op6_8=0b01 & acf8 & op9_16=0b0001010  {
-	acf8 = acf8 >> Imm6;
+# To handle right shifts correctly, we subtract 64 and then negate.
+# Dolphin decodes (well, used to; there's a regression with fmt currently) 1479 as "lsr $ACC0, #-7" which we change to "LSR ac0, #7".
+# Without manual handling, you get "LSR ac0,#0x39" instead.
+op:"LSR" acf8, Imm6Right is Imm6Right & op6_8=0b01 & acf8 & op9_16=0b0001010  {
+	acf8 = acf8 >> Imm6Right;
 }
 op:"ASL" acf8, Imm6 is Imm6 & op6_8=0b10 & acf8 & op9_16=0b0001010 {
 	# This doesn't do anything different, does it?
 	acf8 = acf8 << Imm6;
 }
-op:"ASR" acf8, Imm6 is Imm6 & op6_8=0b11 & acf8 & op9_16=0b0001010 {
-	acf8 = acf8 s>> Imm6;
+op:"ASR" acf8, Imm6Right is Imm6Right & op6_8=0b11 & acf8 & op9_16=0b0001010 {
+	acf8 = acf8 s>> Imm6Right;
 }
 
 # TODO: Not documented.  Dolphin's DSPTables.cpp mentions "these two were discovered by ector".
@@ -685,7 +690,7 @@ a_opp:aacf0, aaxh1 is aacf0 & aaxh1 & aop2_4=1 & aop4_8=0b0011 & axbit=1 {
 	goto <done>;
 
 	<rightshift>
-	aacf0 = aacf0 >> aaxh1[0,6];
+	aacf0 = aacf0 >> (64 - aaxh1[0,6]);
 
 	<done>
 	FLAGS(aacf0);
@@ -701,7 +706,7 @@ a_opp:aacf0, aaxh1 is aacf0 & aaxh1 & aop2_4=2 & aop4_8=0b0011 & axbit=1 {
 	goto <done>;
 
 	<rightshift>
-	aacf0 = aacf0 s>> aaxh1[0,6];
+	aacf0 = aacf0 s>> (64 - aaxh1[0,6]);
 
 	<done>
 	FLAGS(aacf0);
@@ -717,7 +722,7 @@ a_opp:aacf0, aacm0_other is aacf0 & aop1=0 & aop2_4=3 & aop4_8=0b0011 & axbit=1 
 	goto <done>;
 
 	<rightshift>
-	aacf0 = aacf0 >> aacm0_other[0,6];
+	aacf0 = aacf0 >> (64 - aacm0_other[0,6]);
 
 	<done>
 	FLAGS(aacf0);
@@ -733,7 +738,7 @@ a_opp:aacf0, aacm0_other is aacf0 & aop1=1 & aop2_4=3 & aop4_8=0b0011 & axbit=1 
 	goto <done>;
 
 	<rightshift>
-	aacf0 = aacf0 >> aacm0_other[0,6];
+	aacf0 = aacf0 >> (64 - aacm0_other[0,6]);
 
 	<done>
 	FLAGS(aacf0);
