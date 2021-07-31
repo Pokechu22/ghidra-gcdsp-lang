@@ -557,8 +557,35 @@ op:"ASR" acf8, Imm6Right is Imm6Right & op6_8=0b11 & acf8 & op9_16=0b0001010 {
 }
 
 # TODO: Not documented.  Dolphin's DSPTables.cpp mentions "these two were discovered by ector".
-op:"LSRN" is op0_4=0b1010 & op4_8=0b1100 & op8_16=2 unimpl
-op:"ASRN" is op0_4=0b1011 & op4_8=0b1100 & op8_16=2 unimpl
+# These two operate directly on ac0 and ac1.m.
+op:"LSRN" is op0_4=0b1010 & op4_8=0b1100 & op8_16=2 {
+	# Treated as a signed 7-bit field, like LSL/LSR
+	if (ac1.m[6,1] == 1) goto <rightshift>;
+
+	# left shift
+	ac0 = ac0 << ac1.m[0,6];
+	goto <done>;
+
+	<rightshift>
+	ac0 = ac0 >> (64 - ac1.m[0,6]);
+
+	<done>
+	FLAGS(ac0);
+}
+op:"ASRN" is op0_4=0b1011 & op4_8=0b1100 & op8_16=2 {
+	# Treated as a signed 7-bit field, like LSL/LSR
+	if (ac1.m[6,1] == 1) goto <rightshift>;
+
+	# left shift
+	ac0 = ac0 << ac1.m[0,6];
+	goto <done>;
+
+	<rightshift>
+	ac0 = ac0 s>> (64 - ac1.m[0,6]);
+
+	<done>
+	FLAGS(ac0);
+}
 
 op:"SI" Mem8, Imm16 is Mem8 & op8_16=0b00010110; Imm16 {
 	Mem8 = Imm16;
