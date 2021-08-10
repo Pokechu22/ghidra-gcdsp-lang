@@ -26,17 +26,33 @@
     <symbol name="RST6" address="inst:000c" entry="true"/>
     <symbol name="RST7" address="inst:000e" entry="true"/> <!-- External interrupt (from CPU) -->
 
-    <!-- Hardware registers - some from https://github.com/dolphin-emu/dolphin/blob/0b18f8ae55a21d8446083b92a6666199a478b0fe/Source/Core/Core/DSP/DSPCore.h#L136-L170 -->
+    <!-- Hardware registers - some from https://github.com/dolphin-emu/dolphin/blob/0b18f8ae55a21d8446083b92a6666199a478b0fe/Source/Core/Core/DSP/DSPCore.h#L136-L170 and https://github.com/dolphin-emu/dolphin/blob/ffdc8538a162b1ca56e3943c5a78c02358053b2a/Source/Core/Core/DSP/DSPTables.cpp#L333-L433 -->
+    <!-- ADPCM coefficients -->
     <symbol name="COEF_A1_0" address="data:FFA0" />
+    <symbol name="COEF_A2_0" address="data:FFA1" />
+    <symbol name="COEF_A1_1" address="data:FFA2" />
+    <symbol name="COEF_A2_1" address="data:FFA3" />
+    <symbol name="COEF_A1_2" address="data:FFA4" />
+    <symbol name="COEF_A2_2" address="data:FFA5" />
+    <symbol name="COEF_A1_3" address="data:FFA6" />
+    <symbol name="COEF_A2_3" address="data:FFA7" />
+    <symbol name="COEF_A1_4" address="data:FFA8" />
+    <symbol name="COEF_A2_4" address="data:FFA9" />
+    <symbol name="COEF_A1_5" address="data:FFAA" />
+    <symbol name="COEF_A2_5" address="data:FFAB" />
+    <symbol name="COEF_A1_6" address="data:FFAC" />
+    <symbol name="COEF_A2_6" address="data:FFAD" />
+    <symbol name="COEF_A1_7" address="data:FFAE" />
+    <symbol name="COEF_A2_7" address="data:FFAF" />
     <!-- DMA interface -->
     <symbol name="DSCR" address="data:FFC9" /> <!-- DMA control -->
-    <symbol name="DSPA" address="data:FFCD" /> <!-- DSP memory address -->
     <symbol name="DSBL" address="data:FFCB" /> <!-- Block size -->
+    <symbol name="DSPA" address="data:FFCD" /> <!-- DSP memory address -->
     <symbol name="DSMAH" address="data:FFCE" /> <!-- Memory address H -->
     <symbol name="DSMAL" address="data:FFCF" /> <!-- Memory address L -->
     <!-- Accelerator, etc. -->
     <symbol name="FORMAT" address="data:FFD1" /> <!-- Sample format -->
-    <symbol name="ACUNK" address="data:FFD2" /> <!-- Usually set to 3 -->
+    <symbol name="ACUNK1" address="data:FFD2" /> <!-- Usually set to 3 -->
     <symbol name="ACDATA1" address="data:FFD3" /> <!-- Used by Zelda ucode -->
 
     <symbol name="ACSAH" address="data:FFD4" /> <!-- Accelerator start address H -->
@@ -51,7 +67,7 @@
     <symbol name="YN2" address="data:FFDC" />
     <symbol name="ACDAT" address="data:FFDD" /> <!-- Accelerator data -->
     <symbol name="GAIN" address="data:FFDE" />
-    <symbol name="GAIN" address="data:FFDF" />
+    <symbol name="ACUNK2" address="data:FFDF" /> <!-- Usually set to 0xc -->
 
     <symbol name="AMDM" address="data:FFEF" /> <!-- ARAM DMA Request Mask 0: DMA with ARAM unmasked 1: masked -->
 
@@ -69,7 +85,7 @@
     <memory_block name="irom" start_address="inst:0x8000" length="0x2000" mode="rx" initialized="false" /> <!-- dsp_rom.bin -->
     <memory_block name="dram" start_address="data:0x0000" length="0x2000" mode="rw" initialized="false" />
     <memory_block name="coef" start_address="data:0x1000" length="0x1000" mode="rw" initialized="false" /> <!-- dsp_coef.bin -->
-    <memory_block name="hw" start_address="data:0xff00" length="0x200" mode="rwv" initialized="false" />
+    <memory_block name="ifx" start_address="data:0xff00" length="0x200" mode="rwv" initialized="false" />
   </default_memory_blocks>
   <volatile outputop="write_volatile" inputop="read_volatile">
     <range space="data" first="0xff00" last="0xffff"/>
