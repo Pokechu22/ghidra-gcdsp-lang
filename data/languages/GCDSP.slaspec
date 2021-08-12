@@ -1020,7 +1020,7 @@ a_opp:aacm4, aaxh3 is aop0_3=0b000 & aaxh3 & aacm4 & aop5_8=0b110 {
 # Also, the order of the operands seems backwards from the other nearby instructions...
 a_opc:"CMPAR"      is aop0_3=0b001 & aacf3 & aaxh4 & aop5_8=0b110 {}
 a_opp:aacf3, aaxh4 is aop0_3=0b001 & aacf3 & aaxh4 & aop5_8=0b110 {
-	FLAGS(aacf3 - sext(aaxh4)); # TODO: Is this the right extension?
+	FLAGS(aacf3 - (sext(aaxh4) << 16)); # TODO: Is this the right extension?
 }
 
 a_opc:"MULCMVZ"           is aacf0 & aop1_3=0b01 & aaxh3 & aacm4 & aop5_8=0b110 {}
