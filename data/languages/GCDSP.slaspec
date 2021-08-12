@@ -903,7 +903,10 @@ a_opp:""    is aop0_3=0b010 & aop3=0 & aop4_8=0b1000 {
 	FLAGS(ac0 - ac1);
 }
 
-# 1000 0011 is unused
+a_opc:"MULAXH" is aop0_3=0b011 & aop3=0 & aop4_8=0b1000 {}
+a_opp:         is aop0_3=0b011 & aop3=0 & aop4_8=0b1000 {
+	prod = zext(ax0.h) * zext(ax0.h);
+}
 
 a_opc:"CLRP" is aop0_3=0b100 & aop3=0 & aop4_8=0b1000 {}
 a_opp:""     is aop0_3=0b100 & aop3=0 & aop4_8=0b1000 {
@@ -912,6 +915,11 @@ a_opp:""     is aop0_3=0b100 & aop3=0 & aop4_8=0b1000 {
 	prod.h  = 0x00ff;
 	prod.m2 = 0x0010;
 	prod = 0;
+}
+
+a_opc:"TSTPROD" is aop0_3=0b101 & aop3=0 & aop4_8=0b1000 {}
+a_opp:          is aop0_3=0b101 & aop3=0 & aop4_8=0b1000 {
+	FLAGS(prod);
 }
 
 a_opc:"TSTAXH" is aaxh0 & aop1_4=0b011 & aop4_8=0b1000 {}
