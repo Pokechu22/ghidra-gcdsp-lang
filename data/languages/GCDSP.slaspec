@@ -5,6 +5,8 @@
 # Directly mutate the sr register instead of a set of fake registers
 # The fake registers provide better decompilation
 #@define USE_REAL_SR_REGISTER
+# Simplify decompilation of the left+right shift instructions
+@define SIMPLIFY_SHIFTS
 
 define endian=big;
 define alignment=2;
@@ -134,6 +136,7 @@ define token opbyte (16)
 # There is a warning for this, though it's not obvious: "Table 'Imm8' exports size 0".
 Imm6: "#"^imm6 is imm6 { export *[const]:2 imm6; }
 # See comment by LSR
+Imm6Right: "#"^rightshiftvalue is imm6=0 [ rightshiftvalue = 0; ] { export *[const]:2 rightshiftvalue; }
 Imm6Right: "#"^rightshiftvalue is imm6 [ rightshiftvalue = (64 - imm6); ] { export *[const]:2 rightshiftvalue; }
 
 Imm8: "#"^imm8 is imm8 { export *[const]:2 imm8; }
@@ -545,6 +548,7 @@ op:"LSL" acf8, Imm6 is Imm6 & op6_8=0b00 & acf8 & op9_16=0b0001010 {
 # To handle right shifts correctly, we subtract 64 and then negate.
 # Dolphin decodes (well, used to; there's a regression with fmt currently) 1479 as "lsr $ACC0, #-7" which we change to "LSR ac0, #7".
 # Without manual handling, you get "LSR ac0,#0x39" instead.
+# Note that if the immediate value is 0, then a shift of 0 still occurs.  Imm6Right handles this.
 op:"LSR" acf8, Imm6Right is Imm6Right & op6_8=0b01 & acf8 & op9_16=0b0001010  {
 	acf8 = acf8 >> Imm6Right;
 }
@@ -556,35 +560,64 @@ op:"ASR" acf8, Imm6Right is Imm6Right & op6_8=0b11 & acf8 & op9_16=0b0001010 {
 	acf8 = acf8 s>> Imm6Right;
 }
 
+@ifdef SIMPLIFY_SHIFTS
+define pcodeop twowaylogicalshift;
+define pcodeop twowayarithmeticshift;
+
+macro TwoWayLogicalShift(value, shift) {
+	value = twowaylogicalshift(value, shift);
+	FLAGS(value);
+}
+
+macro TwoWayArithmeticShift(value, shift) {
+	value = twowayarithmeticshift(value, shift);
+	FLAGS(value);
+}
+@else
+macro TwoWayLogicalShift(value, shift) {
+	# Treated as a signed 7-bit field, like LSL/LSR
+	if (shift[6,1] == 1) goto <rightshift>;
+
+	# left shift
+	value = value << shift[0,6];
+	goto <done>;
+
+	<rightshift>
+	# A right-shift of 64 is actually a right-shift of 0
+	if (shift[0,6] == 0) goto <done>;
+
+	value = value >> (64 - shift[0,6]);
+
+	<done>
+	FLAGS(value);
+}
+
+macro TwoWayArithmeticShift(value, shift) {
+	# Treated as a signed 7-bit field, like ASL/ASR
+	if (shift[6,1] == 1) goto <rightshift>;
+
+	# left shift
+	value = value << shift[0,6];
+	goto <done>;
+
+	<rightshift>
+	# A right-shift of 64 is actually a right-shift of 0
+	if (shift[0,6] == 0) goto <done>;
+
+	value = value s>> (64 - shift[0,6]);
+
+	<done>
+	FLAGS(value);
+}
+@endif
+
 # TODO: Not documented.  Dolphin's DSPTables.cpp mentions "these two were discovered by ector".
 # These two operate directly on ac0 and ac1.m.
 op:"LSRN" is op0_4=0b1010 & op4_8=0b1100 & op8_16=2 {
-	# Treated as a signed 7-bit field, like LSL/LSR
-	if (ac1.m[6,1] == 1) goto <rightshift>;
-
-	# left shift
-	ac0 = ac0 << ac1.m[0,6];
-	goto <done>;
-
-	<rightshift>
-	ac0 = ac0 >> (64 - ac1.m[0,6]);
-
-	<done>
-	FLAGS(ac0);
+	TwoWayLogicalShift(ac0, ac1.m);
 }
 op:"ASRN" is op0_4=0b1011 & op4_8=0b1100 & op8_16=2 {
-	# Treated as a signed 7-bit field, like LSL/LSR
-	if (ac1.m[6,1] == 1) goto <rightshift>;
-
-	# left shift
-	ac0 = ac0 << ac1.m[0,6];
-	goto <done>;
-
-	<rightshift>
-	ac0 = ac0 s>> (64 - ac1.m[0,6]);
-
-	<done>
-	FLAGS(ac0);
+	TwoWayArithmeticShift(ac0, ac1.m);
 }
 
 op:"SI" Mem8, Imm16 is Mem8 & op8_16=0b00010110; Imm16 {
@@ -709,66 +742,22 @@ a_opp:aacm0 is aacm0 & aop1=1 & aop2_4=0 & aop4_8=0b0011 & axbit=1 & aacf0 {
 
 a_opc:"LSRNRX"     is aacf0 & aaxh1 & aop2_4=1 & aop4_8=0b0011 & axbit=1 {}
 a_opp:aacf0, aaxh1 is aacf0 & aaxh1 & aop2_4=1 & aop4_8=0b0011 & axbit=1 {
-	# Treated as a signed 7-bit field, like LSL/LSR
-	if (aaxh1[6,1] == 1) goto <rightshift>;
-
-	# left shift
-	aacf0 = aacf0 << aaxh1[0,6];
-	goto <done>;
-
-	<rightshift>
-	aacf0 = aacf0 >> (64 - aaxh1[0,6]);
-
-	<done>
-	FLAGS(aacf0);
+	TwoWayLogicalShift(aacf0, aaxh1[0,6]);
 }
 
 a_opc:"ASRNRX"     is aacf0 & aaxh1 & aop2_4=2 & aop4_8=0b0011 & axbit=1 {}
 a_opp:aacf0, aaxh1 is aacf0 & aaxh1 & aop2_4=2 & aop4_8=0b0011 & axbit=1 {
-	# Treated as a signed 7-bit field, like ASL/ASR
-	if (aaxh1[6,1] == 1) goto <rightshift>;
-
-	# left shift
-	aacf0 = aacf0 << aaxh1[0,6];
-	goto <done>;
-
-	<rightshift>
-	aacf0 = aacf0 s>> (64 - aaxh1[0,6]);
-
-	<done>
-	FLAGS(aacf0);
+	TwoWayArithmeticShift(aacf0, aaxh1[0,6]);
 }
 
 a_opc:"LSRNR"            is aacf0 & aop1=0 & aop2_4=3 & aop4_8=0b0011 & axbit=1 & aacm0_other {}
 a_opp:aacf0, aacm0_other is aacf0 & aop1=0 & aop2_4=3 & aop4_8=0b0011 & axbit=1 & aacm0_other {
-	# Treated as a signed 7-bit field, like LSL/LSR
-	if (aacm0_other[6,1] == 1) goto <rightshift>;
-
-	# left shift
-	aacf0 = aacf0 << aacm0_other[0,6];
-	goto <done>;
-
-	<rightshift>
-	aacf0 = aacf0 >> (64 - aacm0_other[0,6]);
-
-	<done>
-	FLAGS(aacf0);
+	TwoWayLogicalShift(aacf0, aacm0_other);
 }
 
 a_opc:"ASRNR"            is aacf0 & aop1=1 & aop2_4=3 & aop4_8=0b0011 & axbit=1 & aacm0_other {}
 a_opp:aacf0, aacm0_other is aacf0 & aop1=1 & aop2_4=3 & aop4_8=0b0011 & axbit=1 & aacm0_other {
-	# Treated as a signed 7-bit field, like ASL/asr
-	if (aacm0_other[6,1] == 1) goto <rightshift>;
-
-	# left shift
-	aacf0 = aacf0 << aacm0_other[0,6];
-	goto <done>;
-
-	<rightshift>
-	aacf0 = aacf0 >> (64 - aacm0_other[0,6]);
-
-	<done>
-	FLAGS(aacf0);
+	TwoWayArithmeticShift(aacf0, aacm0_other);
 }
 
 # Remaining arithmetic instructions, where aop4_8 != 0b0011:
@@ -1219,9 +1208,9 @@ ext_opp1:xax0lh5, xax1lh4, "@"^xar0_2 is xar0_2 & xop2_4=0 & xax1lh4 & xax0lh5 &
 	ar3 = ar3 + 1;
 }
 
-# LDAX sets ar0.h or ar1.h to the memory value pointed by either AR0 or AR1, and
-# ar0.l or ar1.l to the memory value pointed by AR3.  The choice is either both
-# ar0.h and ar0.l or ar1.h and ar1.l.  AR2 cannot be used.  M/N exist like normal.
+# LDAX sets ax0.h or ax1.h to the memory value pointed by either AR0 or AR1, and
+# ax0.l or ax1.l to the memory value pointed by AR3.  The choice is either both
+# ax0.h and ax0.l or ax1.h and ax1.l.  AR2 cannot be used.  M/N exist like normal.
 ext_opc1:"LDAX"         is xop0_2=3 & xop2_4=0 & xax4 & xar5 & xop6=1 & xaxl4 & xaxh4 {}
 ext_opp1:xax4, "@"^xar5 is xop0_2=3 & xop2_4=0 & xax4 & xar5 & xop6=1 & xaxl4 & xaxh4 {
 	xaxh4 = *:2 xar5;
