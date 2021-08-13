@@ -101,7 +101,8 @@ define token opbyte (16)
 	op10_16 = (10, 15)
 	op11_16 = (11, 15)
 
-	op0_5  = (0, 4)
+	op0_5 = (0, 4)
+	op5   = (4, 4)
 
 	ar0_2 = (0, 1)
 	ix0_2 = (0, 1)
@@ -629,6 +630,16 @@ op:"CALLR" reg5_8 is op0_5=0b11111 & reg5_8 & op8_16=0b00010111 {
 	call [reg5_8];
 }
 op:"JMPR" reg5_8 is op0_5=0b01111 & reg5_8 & op8_16=0b00010111 {
+	goto [reg5_8];
+}
+
+op:"CALLR"^cc reg5_8 is cc & op5=1 & reg5_8 & op8_16=0b00010111 {
+	if (!cc) goto inst_next;
+	# TODO: Update stack
+	call [reg5_8];
+}
+op:"JR"^cc reg5_8 is cc & op5=0 & reg5_8 & op8_16=0b00010111 {
+	if (!cc) goto inst_next;
 	goto [reg5_8];
 }
 
