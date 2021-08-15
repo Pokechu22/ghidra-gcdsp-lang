@@ -398,21 +398,21 @@ op:"SR" Mem16, reg0_5 is reg0_5 & op5_8=0b111 & op8_16=0; Mem16 {
 	# "Perform an additional operation depending on destination register"
 }
 
-cc: "GE" is cc0_4=0b0000 { c:1 = ($(SR_OVERFLOW) == $(SR_SIGN)); export c; }
-cc: "L"  is cc0_4=0b0001 { c:1 = ($(SR_OVERFLOW) != $(SR_SIGN)); export c; }
-cc: "G"  is cc0_4=0b0010 { c:1 = (($(SR_OVERFLOW) == $(SR_SIGN)) && !$(SR_ARITH_ZERO)); export c; }
-cc: "LE" is cc0_4=0b0011 { c:1 = (($(SR_OVERFLOW) != $(SR_SIGN)) || $(SR_ARITH_ZERO)); export c; }
-cc: "NE" is cc0_4=0b0100 { c:1 = !$(SR_ARITH_ZERO); export c; }
-cc: "EQ" is cc0_4=0b0101 { c:1 = $(SR_ARITH_ZERO); export c; }
-cc: "NC" is cc0_4=0b0110 { c:1 = !$(SR_CARRY); export c; }
-cc: "C"  is cc0_4=0b0111 { c:1 = $(SR_CARRY); export c; }
-cc: "x8" is cc0_4=0b1000 { c:1 = !$(SR_OVER_32); export c; } # "Below s32"
-cc: "x9" is cc0_4=0b1001 { c:1 = $(SR_OVER_32); export c; } # "Above s32"
-cc: "xA" is cc0_4=0b1010 { c:1 = (($(SR_OVER_32) || $(SR_TOP2BITS)) && !$(SR_ARITH_ZERO)); export c; } # Per dolphin
-cc: "xB" is cc0_4=0b1011 { c:1 = ((!$(SR_OVER_32) && !$(SR_TOP2BITS)) || $(SR_ARITH_ZERO)); export c; } # Per dolphin
-cc: "NZ" is cc0_4=0b1100 { c:1 = !$(SR_LOGIC_ZERO); export c; }
-cc: "ZR" is cc0_4=0b1101 { c:1 = $(SR_LOGIC_ZERO); export c; }
-cc: "O"  is cc0_4=0b1110 { c:1 = $(SR_OVERFLOW); export c; }
+cc: "GE"  is cc0_4=0b0000 { c:1 = ($(SR_OVERFLOW) == $(SR_SIGN)); export c; }
+cc: "L"   is cc0_4=0b0001 { c:1 = ($(SR_OVERFLOW) != $(SR_SIGN)); export c; }
+cc: "G"   is cc0_4=0b0010 { c:1 = (($(SR_OVERFLOW) == $(SR_SIGN)) && !$(SR_ARITH_ZERO)); export c; }
+cc: "LE"  is cc0_4=0b0011 { c:1 = (($(SR_OVERFLOW) != $(SR_SIGN)) || $(SR_ARITH_ZERO)); export c; }
+cc: "NZ"  is cc0_4=0b0100 { c:1 = !$(SR_ARITH_ZERO); export c; }
+cc: "Z"   is cc0_4=0b0101 { c:1 = $(SR_ARITH_ZERO); export c; }
+cc: "NC"  is cc0_4=0b0110 { c:1 = !$(SR_CARRY); export c; }
+cc: "C"   is cc0_4=0b0111 { c:1 = $(SR_CARRY); export c; }
+cc: "x8"  is cc0_4=0b1000 { c:1 = !$(SR_OVER_32); export c; } # "Below s32"
+cc: "x9"  is cc0_4=0b1001 { c:1 = $(SR_OVER_32); export c; } # "Above s32"
+cc: "xA"  is cc0_4=0b1010 { c:1 = (($(SR_OVER_32) || $(SR_TOP2BITS)) && !$(SR_ARITH_ZERO)); export c; } # Per dolphin
+cc: "xB"  is cc0_4=0b1011 { c:1 = ((!$(SR_OVER_32) && !$(SR_TOP2BITS)) || $(SR_ARITH_ZERO)); export c; } # Per dolphin
+cc: "LNZ" is cc0_4=0b1100 { c:1 = !$(SR_LOGIC_ZERO); export c; }
+cc: "LZ"  is cc0_4=0b1101 { c:1 = $(SR_LOGIC_ZERO); export c; }
+cc: "O"   is cc0_4=0b1110 { c:1 = $(SR_OVERFLOW); export c; }
 # The always variant (cc0_4=0b1111) isn't listed here, so it can be handled separately
 
 op:"IF"^cc is cc & op4_8=0b0111 & op8_16=2 {
