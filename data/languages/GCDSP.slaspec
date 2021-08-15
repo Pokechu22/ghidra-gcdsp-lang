@@ -7,6 +7,9 @@
 #@define USE_REAL_SR_REGISTER
 # Simplify decompilation of the left+right shift instructions
 @define SIMPLIFY_SHIFTS
+# Assume CR is always set to 0x00ff - makes LRS and SRS disassemble better
+# This assumption is violated for Zelda uCode.
+@define SIMPLIFY_CR
 
 define endian=big;
 define alignment=2;
@@ -142,7 +145,12 @@ Imm6Right: "#"^rightshiftvalue is imm6 [ rightshiftvalue = (64 - imm6); ] { expo
 
 Imm8: "#"^imm8 is imm8 { export *[const]:2 imm8; }
 SImm8: "#"^simm8 is simm8 { export *[const]:2 simm8; }
-Mem8: "@"^simm8 is simm8 { export *:2 simm8; }  # TODO: Is this formatted right?
+Mem8FF: "@"^addr is imm8 [ addr = 0xff00 | imm8; ] { export *:2 addr; }
+@ifdef SIMPLIFY_CR
+Mem8CR: Mem8FF is Mem8FF { export Mem8FF; }
+@else
+Mem8CR: "@((cr << 8) | "^imm8^")" is imm8 { addr:2 = (((cr & 0xff) << 8) | imm8); export *:2 addr; }
+@endif
 
 define token data16 (16)
 	imm16  = (0,15)
@@ -623,8 +631,8 @@ op:"ASRN" is op0_4=0b1011 & op4_8=0b1100 & op8_16=2 {
 	TwoWayArithmeticShift(ac0, ac1.m);
 }
 
-op:"SI" Mem8, Imm16 is Mem8 & op8_16=0b00010110; Imm16 {
-	Mem8 = Imm16;
+op:"SI" Mem8FF, Imm16 is Mem8FF & op8_16=0b00010110; Imm16 {
+	Mem8FF = Imm16;
 }
 
 op:"CALLR" reg5_8 is op0_5=0b11111 & reg5_8 & op8_16=0b00010111 {
@@ -689,11 +697,11 @@ op:"MRR" reg5_10, reg0_5 is reg0_5 & reg5_10 & op10_16=0b000111 {
 	reg5_10 = reg0_5;
 }
 
-op:"LRS" ac8_11, Mem8 is Mem8 & ac8_11 & op11_16=0b00100 {
-	ac8_11 = Mem8;
+op:"LRS" ac8_11, Mem8CR is Mem8CR & ac8_11 & op11_16=0b00100 {
+	ac8_11 = Mem8CR;
 }
-op:"SRS" Mem8, ac8_11 is Mem8 & ac8_11 & op11_16=0b00101 {
-	Mem8 = ac8_11;
+op:"SRS" Mem8CR, ac8_11 is Mem8CR & ac8_11 & op11_16=0b00101 {
+	Mem8CR = ac8_11;
 }
 
 # TODO: Not documented in the manual
