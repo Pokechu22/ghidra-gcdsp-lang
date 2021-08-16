@@ -439,6 +439,13 @@ op:"RET"^cc is cc & op4_8=0b1101 & op8_16=2 {
 	return [st0];
 }
 
+op:"RTI"^cc is cc & op4_8=0b1111 & op8_16=2 {
+	if (!cc) goto inst_next;
+
+	tmp:2 = 0; # TODO: Return address
+	return [tmp];
+}
+
 # Unconditional variants
 
 # Unconditionally execute the next opcode, presumably... not very useful?  Mark as unimpl so that a warning occurs
@@ -455,6 +462,11 @@ op:"CALL" Addr16 is cc0_4=0b1111 & op4_8=0b1011 & op8_16=2; Addr16 {
 
 op:"RET" is cc0_4=0b1111 & op4_8=0b1101 & op8_16=2 {
 	return [st0];
+}
+
+op:"RTI" is op0_4=0b1111 & op4_8=0b1111 & op8_16=2 {
+	tmp:2 = 0; # TODO: Return address
+	return [tmp];
 }
 
 op:"ADDI"  acs8, SImm16 is op0_4=0 & op4_8=0b0000 & acs8 & op9_16=1 & acf8; SImm16 { acs8 = acs8 + sext(SImm16); FLAGS(acf8); }
@@ -702,12 +714,6 @@ op:"LRS" ac8_11, Mem8CR is Mem8CR & ac8_11 & op11_16=0b00100 {
 }
 op:"SRS" Mem8CR, ac8_11 is Mem8CR & ac8_11 & op11_16=0b00101 {
 	Mem8CR = ac8_11;
-}
-
-# TODO: Not documented in the manual
-op:"RTI" is op0_4=0b1111 & op4_8=0b1111 & op8_16=2 {
-	tmp:2 = 0; # TODO: Return address
-	return [tmp];
 }
 
 # Define arithmetic opcodes and opcode parameters.
