@@ -127,6 +127,8 @@ define token opbyte (16)
 	acf8 = (8, 8)
 	acs8 = (8, 8)
 	ac8_11 = (8, 10)
+	ac8_10 = (8, 9)
+	ach8 =   (8, 8)
 
 	srbit = (0, 2)
 	imm6 = (0, 5)
@@ -190,6 +192,8 @@ attach variables [ acm8 ] [ ac0.m ac1.m ]; # Middle of 40-bit accumulators
 attach variables [ acf8 ] [ ac0 ac1 ]; # Full 40-bit accumulators
 attach variables [ acs8 ] [ acs0 acs1 ]; # 24 bits of 40-bit accumulators
 attach variables [ ac8_11 ] [ ax0.l ax1.l ax0.h ax1.h ac0.l ac1.l ac0.m ac1.m ]; # 3-bit field referring to a register starting at 0x18 (ax0.l)
+attach variables [ ac8_10 ] [ ac0.l ac1.l ac0.m ac1.m ]; # 2-bit field referring to a register starting at 0x1C (ac0.l)
+attach variables [ ach8 ] [ ac0.h ac1.h ]; # Top of 40-bit accumulators
 
 @ifdef USE_REAL_SR_REGISTER
 # Offset by 6
@@ -712,8 +716,14 @@ op:"MRR" reg5_10, reg0_5 is reg0_5 & reg5_10 & op10_16=0b000111 {
 op:"LRS" ac8_11, Mem8CR is Mem8CR & ac8_11 & op11_16=0b00100 {
 	ac8_11 = Mem8CR;
 }
-op:"SRS" Mem8CR, ac8_11 is Mem8CR & ac8_11 & op11_16=0b00101 {
-	Mem8CR = ac8_11;
+# 0b0010 100s mmmm mmmm
+op:"SRSH" Mem8CR, ach8 is Mem8CR & ach8 & op9_16=0b0010100 {
+	Mem8CR = ach8;
+}
+# 0b0010 101s mmmm mmmm is unused/unknown
+# 0b0010 11ss mmmm mmmm
+op:"SRS" Mem8CR, ac8_10 is Mem8CR & ac8_10 & op10_16=0b001011 {
+	Mem8CR = ac8_10;
 }
 
 # Define arithmetic opcodes and opcode parameters.
