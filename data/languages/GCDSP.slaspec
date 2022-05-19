@@ -328,7 +328,6 @@ macro FLAGS(result) {
 	$(SR_SIGN) = (result s< 0);  # Sign
 	$(SR_OVER_32) = 0;  # TODO: Above s32
 	$(SR_TOP2BITS) = 0;  # TODO: Top 2 bits equal
-	$(SR_LOGIC_ZERO) = 0;  # TODO: Logic zero
 	$(SR_OVERFLOW_STICKY) = $(SR_OVERFLOW_STICKY) | 0;  # TODO: Overflow (sticky)
 }
 
