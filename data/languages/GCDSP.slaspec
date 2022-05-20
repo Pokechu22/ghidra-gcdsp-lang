@@ -321,14 +321,49 @@ attach variables [ xaxh4 ] [ ax0.h ax1.h ];
 attach variables [ xar5 ] [ ar0 ar1 ];
 attach variables [ xix5 ] [ ix0 ix1 ];
 
-macro FLAGS(result) {
-	$(SR_CARRY) = 0;  # TODO: Carry
-	$(SR_OVERFLOW) = 0;  # TODO: Overflow
+macro FLAGS16X(result, carry, overflow, over_s32) {
+	$(SR_CARRY) = carry;  # Carry
+	$(SR_OVERFLOW) = overflow;  # Overflow
 	$(SR_ARITH_ZERO) = (result == 0);  # Zero
 	$(SR_SIGN) = (result s< 0);  # Sign
-	$(SR_OVER_32) = 0;  # TODO: Above s32
-	$(SR_TOP2BITS) = 0;  # TODO: Top 2 bits equal
-	$(SR_OVERFLOW_STICKY) = $(SR_OVERFLOW_STICKY) | 0;  # TODO: Overflow (sticky)
+	$(SR_OVER_32) = over_s32;  # Above s32
+	$(SR_TOP2BITS) = ((result & 0xc000) == 0) || ((result & 0xc000) == 0xc000);  # Top 2 bits equal
+	$(SR_OVERFLOW_STICKY) = $(SR_OVERFLOW_STICKY) | $(SR_OVERFLOW);  # Sticky overflow
+}
+
+macro FLAGS16(result, result_40) {
+	FLAGS16X(result, 0, 0, (result_40 != sext(result_40:4)));
+}
+
+macro FLAGS40X(result, carry, overflow) {
+	# Flags for a 40-bit operation (like Dolphin's UpdateSR64)
+	$(SR_CARRY) = carry;  # Carry
+	$(SR_OVERFLOW) = overflow;  # Overflow
+	$(SR_ARITH_ZERO) = (result == 0);  # Zero
+	$(SR_SIGN) = (result s< 0);  # Sign
+	$(SR_OVER_32) = (result != sext(result:4));  # Above s32
+	$(SR_TOP2BITS) = ((result & 0xc0000000) == 0) || ((result & 0xc0000000) == 0xc0000000);  # Top 2 bits equal
+	$(SR_OVERFLOW_STICKY) = $(SR_OVERFLOW_STICKY) | $(SR_OVERFLOW);  # Sticky overflow
+}
+
+macro FLAGS40(result) {
+	FLAGS40X(result, 0, 0);
+}
+
+macro FLAGS_ADD40(a, b) {
+	# Flags for a 40-bit add (like Dolphin's UpdateSR64Add)
+	# Carry uses an unsigned comparison to match Dolphin's isCarrySubtract.
+	# Comparing Dolphin's isOverflow in DSPIntCCUtil.h and Ghidra's OpBehaviorIntScarry.java,
+	# scarry seems to match our desired behavior here.  Note that this is the same for add and subtract
+	FLAGS40X(a + b, (a > (a + b)), scarry(a, b));
+}
+
+macro FLAGS_SUB40(a, b) {
+	# Flags for a 40-bit subtract (like Dolphin's UpdateSR64Sub)
+	# Carry uses an unsigned comparison to match Dolphin's isCarrySubtract.
+	# Comparing Dolphin's isOverflow in DSPIntCCUtil.h and Ghidra's OpBehaviorIntScarry.java,
+	# scarry seems to match our desired behavior here.  Note that this is the same for add and subtract
+	FLAGS40X(a - b, (a >= (a - b)), scarry(a, -b));
 }
 
 op:"NOP" is op0_4=0 & op4_8=0 & op8_16=0 {
@@ -472,11 +507,11 @@ op:"RTI" is op0_4=0b1111 & op4_8=0b1111 & op8_16=2 {
 	return [tmp];
 }
 
-op:"ADDI"  acs8, SImm16 is op0_4=0 & op4_8=0b0000 & acs8 & op9_16=1 & acf8; SImm16 { acs8 = acs8 + sext(SImm16); FLAGS(acf8); }
-op:"XORI"  acm8, Imm16 is op0_4=0 & op4_8=0b0010 & acm8 & op9_16=1 & acf8; Imm16 { acm8 = acm8 ^ Imm16; FLAGS(acf8); }
-op:"ANDI"  acm8, Imm16 is op0_4=0 & op4_8=0b0100 & acm8 & op9_16=1 & acf8; Imm16 { acm8 = acm8 & Imm16; FLAGS(acf8); }
-op:"ORI"   acm8, Imm16 is op0_4=0 & op4_8=0b0110 & acm8 & op9_16=1 & acf8; Imm16 { acm8 = acm8 | Imm16; FLAGS(acf8); }
-op:"CMPI"  acf8, SImm16 is op0_4=0 & op4_8=0b1000 & acf8 & op9_16=1; SImm16 { FLAGS(acf8 - sext(SImm16 << 16)); }
+op:"ADDI"  acs8, SImm16 is op0_4=0 & op4_8=0b0000 & acs8 & op9_16=1 & acf8; SImm16 { FLAGS_ADD40(acf8, sext(SImm16) << 16); acs8 = acs8 + sext(SImm16); }
+op:"XORI"  acm8, Imm16 is op0_4=0 & op4_8=0b0010 & acm8 & op9_16=1 & acf8; Imm16 { acm8 = acm8 ^ Imm16; FLAGS16(acm8, acf8); }
+op:"ANDI"  acm8, Imm16 is op0_4=0 & op4_8=0b0100 & acm8 & op9_16=1 & acf8; Imm16 { acm8 = acm8 & Imm16; FLAGS16(acm8, acf8); }
+op:"ORI"   acm8, Imm16 is op0_4=0 & op4_8=0b0110 & acm8 & op9_16=1 & acf8; Imm16 { acm8 = acm8 | Imm16; FLAGS16(acm8, acf8); }
+op:"CMPI"  acf8, SImm16 is op0_4=0 & op4_8=0b1000 & acf8 & op9_16=1; SImm16 { FLAGS_SUB40(acf8, sext(SImm16) << 16); }
 op:"ANDF"  acm8, Imm16 is op0_4=0 & op4_8=0b1010 & acm8 & op9_16=1; Imm16 {
 	$(SR_LOGIC_ZERO) = ((acm8 & Imm16) == 0);
 }
@@ -506,14 +541,11 @@ op:"ILRRN" acm8, "@"^ar0_2, ix0_2 is ar0_2 & op2_4=3 & op4_8=1 & acm8 & op9_16=1
 
 # "Perform an additional operation depending on destination register"
 op:"ADDIS" acf8, SImm8 is SImm8 & acf8 & op9_16=0b0000010 & acs8 {
+	FLAGS_ADD40(acf8, sext(SImm8));
 	acs8 = acs8 + sext(SImm8);
-	FLAGS(acf8);
 }
-op:"CMPIS" acf8, SImm8 is SImm8 & acf8 & op9_16=0b0000011 & acs8 {
-	acc_old:6 = acf8;
-	acs8 = acs8 + sext(SImm8);
-	FLAGS(acf8);
-	acf8 = acc_old;
+op:"CMPIS" acf8, SImm8 is SImm8 & acf8 & op9_16=0b0000011 {
+	FLAGS_SUB40(acf8, sext(SImm8) << 16);
 }
 op:"LRIS" ac8_11, SImm8 is SImm8 & ac8_11 & op11_16=0b00001 {
 	ac8_11 = SImm8;
@@ -570,6 +602,7 @@ op:"SBSET" srbit is srbit & op3_8=0 & op8_16=0b00010011 {
 # though it treats them as 2 pairs of instructions with a 6-bit value (allegedly somehow sign-extended for the right-shift)
 op:"LSL" acf8, Imm6 is Imm6 & op6_8=0b00 & acf8 & op9_16=0b0001010 {
 	acf8 = acf8 << Imm6;
+	FLAGS40(acf8);
 }
 # To handle right shifts correctly, we subtract 64 and then negate.
 # Dolphin decodes (well, used to; there's a regression with fmt currently) 1479 as "lsr $ACC0, #-7" which we change to "LSR ac0, #7".
@@ -577,13 +610,16 @@ op:"LSL" acf8, Imm6 is Imm6 & op6_8=0b00 & acf8 & op9_16=0b0001010 {
 # Note that if the immediate value is 0, then a shift of 0 still occurs.  Imm6Right handles this.
 op:"LSR" acf8, Imm6Right is Imm6Right & op6_8=0b01 & acf8 & op9_16=0b0001010  {
 	acf8 = acf8 >> Imm6Right;
+	FLAGS40(acf8);
 }
 op:"ASL" acf8, Imm6 is Imm6 & op6_8=0b10 & acf8 & op9_16=0b0001010 {
 	# This doesn't do anything different, does it?
 	acf8 = acf8 << Imm6;
+	FLAGS40(acf8);
 }
 op:"ASR" acf8, Imm6Right is Imm6Right & op6_8=0b11 & acf8 & op9_16=0b0001010 {
 	acf8 = acf8 s>> Imm6Right;
+	FLAGS40(acf8);
 }
 
 @ifdef SIMPLIFY_SHIFTS
@@ -592,12 +628,12 @@ define pcodeop twowayarithmeticshift;
 
 macro TwoWayLogicalShift(value, shift) {
 	value = twowaylogicalshift(value, shift);
-	FLAGS(value);
+	FLAGS40(value);
 }
 
 macro TwoWayArithmeticShift(value, shift) {
 	value = twowayarithmeticshift(value, shift);
-	FLAGS(value);
+	FLAGS40(value);
 }
 @else
 macro TwoWayLogicalShift(value, shift) {
@@ -615,7 +651,7 @@ macro TwoWayLogicalShift(value, shift) {
 	value = value >> (64 - shift[0,6]);
 
 	<done>
-	FLAGS(value);
+	FLAGS40(value);
 }
 
 macro TwoWayArithmeticShift(value, shift) {
@@ -633,7 +669,7 @@ macro TwoWayArithmeticShift(value, shift) {
 	value = value s>> (64 - shift[0,6]);
 
 	<done>
-	FLAGS(value);
+	FLAGS40(value);
 }
 @endif
 
@@ -737,43 +773,43 @@ op:"SRS" Mem8CR, ac8_10 is Mem8CR & ac8_10 & op10_16=0b001011 {
 a_opc:"XORR"       is aacm0 & aaxh1 & aop2_4=0 & aop4_8=0b0011 & axbit=0 & aacf0 {}
 a_opp:aacm0, aaxh1 is aacm0 & aaxh1 & aop2_4=0 & aop4_8=0b0011 & axbit=0 & aacf0 {
 	aacm0 = aacm0 ^ aaxh1;
-	FLAGS(aacf0);
+	FLAGS16(aacm0, aacf0);
 }
 
 a_opc:"ANDR"       is aacm0 & aaxh1 & aop2_4=1 & aop4_8=0b0011 & axbit=0 & aacf0 {}
 a_opp:aacm0, aaxh1 is aacm0 & aaxh1 & aop2_4=1 & aop4_8=0b0011 & axbit=0 & aacf0 {
 	aacm0 = aacm0 & aaxh1;
-	FLAGS(aacf0);
+	FLAGS16(aacm0, aacf0);
 }
 
 a_opc:"ORR"        is aacm0 & aaxh1 & aop2_4=2 & aop4_8=0b0011 & axbit=0 & aacf0 {}
 a_opp:aacm0, aaxh1 is aacm0 & aaxh1 & aop2_4=2 & aop4_8=0b0011 & axbit=0 & aacf0 {
 	aacm0 = aacm0 | aaxh1;
-	FLAGS(aacf0);
+	FLAGS16(aacm0, aacf0);
 }
 
 a_opc:"ANDC"             is aacm0 & aop1=0 & aop2_4=3 & aop4_8=0b0011 & axbit=0 & aacm0_other & aacf0 {}
 a_opp:aacm0, aacm0_other is aacm0 & aop1=0 & aop2_4=3 & aop4_8=0b0011 & axbit=0 & aacm0_other & aacf0 {
 	aacm0 = aacm0 & aacm0_other;
-	FLAGS(aacf0);
+	FLAGS16(aacm0, aacf0);
 }
 
 a_opc:"ORC"              is aacm0 & aop1=1 & aop2_4=3 & aop4_8=0b0011 & axbit=0 & aacm0_other & aacf0 {}
 a_opp:aacm0, aacm0_other is aacm0 & aop1=1 & aop2_4=3 & aop4_8=0b0011 & axbit=0 & aacm0_other & aacf0 {
 	aacm0 = aacm0 | aacm0_other;
-	FLAGS(aacf0);
+	FLAGS16(aacm0, aacf0);
 }
 
 a_opc:"XORC"             is aacm0 & aop1=0 & aop2_4=0 & aop4_8=0b0011 & axbit=1 & aacm0_other & aacf0 {}
 a_opp:aacm0, aacm0_other is aacm0 & aop1=0 & aop2_4=0 & aop4_8=0b0011 & axbit=1 & aacm0_other & aacf0 {
 	aacm0 = aacm0 ^ aacm0_other;
-	FLAGS(aacf0);
+	FLAGS16(aacm0, aacf0);
 }
 
 a_opc:"NOT" is aacm0 & aop1=1 & aop2_4=0 & aop4_8=0b0011 & axbit=1 & aacf0 {}
 a_opp:aacm0 is aacm0 & aop1=1 & aop2_4=0 & aop4_8=0b0011 & axbit=1 & aacf0 {
 	aacm0 = ~aacm0;
-	FLAGS(aacf0);
+	FLAGS16(aacm0, aacf0);
 }
 
 a_opc:"LSRNRX"     is aacf0 & aaxh1 & aop2_4=1 & aop4_8=0b0011 & axbit=1 {}
@@ -799,50 +835,50 @@ a_opp:aacf0, aacm0_other is aacf0 & aop1=1 & aop2_4=3 & aop4_8=0b0011 & axbit=1 
 # Remaining arithmetic instructions, where aop4_8 != 0b0011:
 a_opc:"ADDR"        is aacf0 & aax1_2 & aop3=0 & aop4_8=0b0100 {}
 a_opp:aacf0, aax1_2 is aacf0 & aax1_2 & aop3=0 & aop4_8=0b0100 {
+	FLAGS_ADD40(aacf0, sext(aax1_2));
 	aacf0 = aacf0 + sext(aax1_2);
-	FLAGS(aacf0);
 }
 
 a_opc:"ADDAX"      is aacf0 & aaxf1 & aop2_4=2 & aop4_8=0b0100 {}
 a_opp:aacf0, aaxf1 is aacf0 & aaxf1 & aop2_4=2 & aop4_8=0b0100 {
+	FLAGS_ADD40(aacf0, sext(aaxf1));
 	aacf0 = aacf0 + sext(aaxf1);
-	FLAGS(aacf0);
 }
 
 a_opc:"ADD"              is aacf0 & aop1=0 & aop2_4=3 & aop4_8=0b0100 & aacf0_other {}
 a_opp:aacf0, aacf0_other is aacf0 & aop1=0 & aop2_4=3 & aop4_8=0b0100 & aacf0_other {
+	FLAGS_ADD40(aacf0, aacf0_other);
 	aacf0 = aacf0 + aacf0_other;
-	FLAGS(aacf0);
 }
 
 a_opc:"ADDP" is aacf0 & aop1=1 & aop2_4=3 & aop4_8=0b0100 {}
 a_opp:aacf0  is aacf0 & aop1=1 & aop2_4=3 & aop4_8=0b0100 {
+	FLAGS_ADD40(aacf0, prod);
 	aacf0 = aacf0 + prod;
-	FLAGS(aacf0);
 }
 
 a_opc:"SUBR"        is aacf0 & aax1_2 & aop3=0 & aop4_8=0b0101 {}
 a_opp:aacf0, aax1_2 is aacf0 & aax1_2 & aop3=0 & aop4_8=0b0101 {
+	FLAGS_SUB40(aacf0, sext(aax1_2));
 	aacf0 = aacf0 - sext(aax1_2);
-	FLAGS(aacf0);
 }
 
 a_opc:"SUBAX"      is aacf0 & aaxf1 & aop2_4=2 & aop4_8=0b0101 {}
 a_opp:aacf0, aaxf1 is aacf0 & aaxf1 & aop2_4=2 & aop4_8=0b0101 {
+	FLAGS_SUB40(aacf0, sext(aaxf1));
 	aacf0 = aacf0 - sext(aaxf1);
-	FLAGS(aacf0);
 }
 
 a_opc:"SUB"              is aacf0 & aop1=0 & aop2_4=3 & aop4_8=0b0101 & aacf0_other {}
 a_opp:aacf0, aacf0_other is aacf0 & aop1=0 & aop2_4=3 & aop4_8=0b0101 & aacf0_other {
+	FLAGS_SUB40(aacf0, aacf0_other);
 	aacf0 = aacf0 - aacf0_other;
-	FLAGS(aacf0);
 }
 
 a_opc:"SUBP" is aacf0 & aop1=1 & aop2_4=3 & aop4_8=0b0101 {}
 a_opp:aacf0  is aacf0 & aop1=1 & aop2_4=3 & aop4_8=0b0101 {
+	FLAGS_SUB40(aacf0, prod);
 	aacf0 = aacf0 - prod;
-	FLAGS(aacf0);
 }
 
 a_opc:"MOVR"        is aacf0 & aax1_2 & aop3=0 & aop4_8=0b0110 {}
@@ -850,67 +886,67 @@ a_opp:aacf0, aax1_2 is aacf0 & aax1_2 & aop3=0 & aop4_8=0b0110 {
 	# high bits sign-extended, middle bits based on value, low bits zeroed
 	# TODO: Use aacs0?
 	aacf0 = sext(aax1_2) << 16;
-	FLAGS(aacf0);
+	FLAGS40(aacf0);
 }
 
 a_opc:"MOVAX"      is aacf0 & aaxf1 & aop2_4=2 & aop4_8=0b0110 {}
 a_opp:aacf0, aaxf1 is aacf0 & aaxf1 & aop2_4=2 & aop4_8=0b0110 {
 	aacf0 = sext(aaxf1);
-	FLAGS(aacf0);
+	FLAGS40(aacf0);
 }
 
 a_opc:"MOV"              is aacf0 & aop1=0 & aop2_4=3 & aop4_8=0b0110 & aacf0_other {}
 a_opp:aacf0, aacf0_other is aacf0 & aop1=0 & aop2_4=3 & aop4_8=0b0110 & aacf0_other {
 	aacf0 = aacf0_other;
-	FLAGS(aacf0);
+	FLAGS40(aacf0);
 }
 
 a_opc:"MOVP" is aacf0 & aop1=1 & aop2_4=3 & aop4_8=0b0110 {}
 a_opp:aacf0  is aacf0 & aop1=1 & aop2_4=3 & aop4_8=0b0110 {
 	aacf0 = prod;
-	FLAGS(aacf0);
+	FLAGS40(aacf0);
 }
 
 a_opc:"ADDAXL"     is aacf0 & aaxl1 & aop2_4=0 & aop4_8=0b0111 {}
 a_opp:aacf0, aaxl1 is aacf0 & aaxl1 & aop2_4=0 & aop4_8=0b0111 {
+	FLAGS_ADD40(aacf0, zext(aaxl1));
 	aacf0 = aacf0 + zext(aaxl1);  # Note: unsigned extension
-	FLAGS(aacf0);
 }
 
 a_opc:"INCM" is aacs0 & aop1=0 & aop2_4=1 & aop4_8=0b0111 & aacf0 {}
 a_opp:aacs0  is aacs0 & aop1=0 & aop2_4=1 & aop4_8=0b0111 & aacf0 {
+	FLAGS_ADD40(aacf0, 0x10000);
 	aacs0 = aacs0 + 1;
-	FLAGS(aacf0);
 }
 
 a_opc:"INC" is aacf0 & aop1=1 & aop2_4=1 & aop4_8=0b0111 {}
 a_opp:aacf0 is aacf0 & aop1=1 & aop2_4=1 & aop4_8=0b0111 {
+	FLAGS_ADD40(aacf0, 1);
 	aacf0 = aacf0 + 1;
-	FLAGS(aacf0);
 }
 
 a_opc:"DECM" is aacs0 & aop1=0 & aop2_4=2 & aop4_8=0b0111 & aacf0 {}
 a_opp:aacs0  is aacs0 & aop1=0 & aop2_4=2 & aop4_8=0b0111 & aacf0 {
+	FLAGS_SUB40(aacf0, 0x10000);
 	aacs0 = aacs0 - 1;
-	FLAGS(aacf0);
 }
 
 a_opc:"DEC" is aacf0 & aop1=1 & aop2_4=2 & aop4_8=0b0111 {}
 a_opp:aacf0 is aacf0 & aop1=1 & aop2_4=2 & aop4_8=0b0111 {
+	FLAGS_SUB40(aacf0, 1);
 	aacf0 = aacf0 - 1;
-	FLAGS(aacf0);
 }
 
 a_opc:"NEG" is aacf0 & aop1=0 & aop2_4=3 & aop4_8=0b0111 {}
 a_opp:aacf0 is aacf0 & aop1=0 & aop2_4=3 & aop4_8=0b0111 {
+	FLAGS_SUB40(0, aacf0);
 	aacf0 = -aacf0;
-	FLAGS(aacf0);
 }
 
 a_opc:"MOVNP" is aacf0 & aop1=1 & aop2_4=3 & aop4_8=0b0111 {}
 a_opp:aacf0   is aacf0 & aop1=1 & aop2_4=3 & aop4_8=0b0111 {
 	aacf0 = -prod;
-	FLAGS(aacf0);
+	FLAGS40(aacf0);
 }
 
 # A NOP that is used to specify only an extended opcode.  Bit 3 can be either 0 or 1.
@@ -920,12 +956,12 @@ a_opp:""   is aop0_3=0 & aop4_8=0b1000 {}
 a_opc:"CLR" is aop0_3=1 & aacf3 & aop4_8=0b1000 {}
 a_opp:aacf3 is aop0_3=1 & aacf3 & aop4_8=0b1000 {
 	aacf3 = 0;
-	FLAGS(aacf3);
+	FLAGS40(aacf3);
 }
 
 a_opc:"CMP" is aop0_3=0b010 & aop3=0 & aop4_8=0b1000 {}
 a_opp:""    is aop0_3=0b010 & aop3=0 & aop4_8=0b1000 {
-	FLAGS(ac0 - ac1);
+	FLAGS_SUB40(ac0, ac1);
 }
 
 a_opc:"MULAXH" is aop0_3=0b011 & aop3=0 & aop4_8=0b1000 {}
@@ -944,12 +980,12 @@ a_opp:""     is aop0_3=0b100 & aop3=0 & aop4_8=0b1000 {
 
 a_opc:"TSTPROD" is aop0_3=0b101 & aop3=0 & aop4_8=0b1000 {}
 a_opp:          is aop0_3=0b101 & aop3=0 & aop4_8=0b1000 {
-	FLAGS(prod);
+	FLAGS40(prod);
 }
 
 a_opc:"TSTAXH" is aaxh0 & aop1_4=0b011 & aop4_8=0b1000 {}
 a_opp:aaxh0    is aaxh0 & aop1_4=0b011 & aop4_8=0b1000 {
-	FLAGS(aaxh0);
+	FLAGS16X(aaxh0, 0, 0, 0);
 }
 
 # TODO: These instructions are not documented in detail in the manual.
@@ -980,25 +1016,28 @@ a_opp:aaxl3, aaxh3 is aop0_3=0b000 & aaxl3 & aop4_8=0b1001 & aaxh3 { prod = sext
 a_opc:"ASR16" is aop0_3=0b001 & aacf3 & aop4_8=0b1001 {}
 a_opp:aacf3   is aop0_3=0b001 & aacf3 & aop4_8=0b1001 {
 	aacf3 = aacf3 s>> 16;
-	FLAGS(aacf3);
+	FLAGS40(aacf3);
 }
 
 a_opc:"MULMVZ"            is aacf0 & aop1_3=0b01 & aaxl3 & aop4_8=0b1001 & aaxh3 {}
 a_opp:aaxl3, aaxh3, aacf0 is aacf0 & aop1_3=0b01 & aaxl3 & aop4_8=0b1001 & aaxh3 {
 	aacf0 = prod & 0xffffffff0000;
 	prod = sext(aaxl3) * sext(aaxh3);
+	FLAGS40(aacf0);
 }
 
 a_opc:"MULAC"             is aacf0 & aop1_3=0b10 & aaxl3 & aop4_8=0b1001 & aaxh3 {}
 a_opp:aaxl3, aaxh3, aacf0 is aacf0 & aop1_3=0b10 & aaxl3 & aop4_8=0b1001 & aaxh3 {
 	aacf0 = aacf0 + prod;
 	prod = sext(aaxl3) * sext(aaxh3);
+	FLAGS40(aacf0);
 }
 
 a_opc:"MULMV"             is aacf0 & aop1_3=0b11 & aaxl3 & aop4_8=0b1001 & aaxh3 {}
 a_opp:aaxl3, aaxh3, aacf0 is aacf0 & aop1_3=0b11 & aaxl3 & aop4_8=0b1001 & aaxh3 {
 	aacf0 = prod;
 	prod = sext(aaxl3) * sext(aaxh3);
+	FLAGS40(aacf0);
 }
 
 a_opc:"MULX"           is aop0_3=0b000 & aax1lh3 & aax0lh4 & aop5_8=0b101 & aaxh3 {}
@@ -1010,30 +1049,33 @@ a_opp:aax0lh4, aax1lh3 is aop0_3=0b000 & aax1lh3 & aax0lh4 & aop5_8=0b101 & aaxh
 a_opc:"ABS" is aop0_3=0b001 & aacf3 & aop4_8=0b1010 {}
 a_opp:aacf3 is aop0_3=0b001 & aacf3 & aop4_8=0b1010 {
 	aacf3 = abs(aacf3);
-	FLAGS(aacf3);
+	FLAGS40(aacf3);
 }
 
 a_opc:"TST" is aop0_3=0b001 & aacf3 & aop4_8=0b1011 {}
 a_opp:aacf3 is aop0_3=0b001 & aacf3 & aop4_8=0b1011 {
-	FLAGS(aacf3);
+	FLAGS40(aacf3);
 }
 
 a_opc:"MULXMVZ"               is aacf0 & aop1_3=0b01 & aax1lh3 & aax0lh4 & aop5_8=0b101 {}
 a_opp:aax0lh4, aax1lh3, aacf0 is aacf0 & aop1_3=0b01 & aax1lh3 & aax0lh4 & aop5_8=0b101 {
 	aacf0 = prod & 0xffffffff0000;
 	prod = sext(aax0lh4) * sext(aax1lh3);
+	FLAGS40(aacf0);
 }
 
 a_opc:"MULXAC"                is aacf0 & aop1_3=0b10 & aax1lh3 & aax0lh4 & aop5_8=0b101 {}
 a_opp:aax0lh4, aax1lh3, aacf0 is aacf0 & aop1_3=0b10 & aax1lh3 & aax0lh4 & aop5_8=0b101 {
 	aacf0 = aacf0 + prod;
 	prod = sext(aax0lh4) * sext(aax1lh3);
+	FLAGS40(aacf0);
 }
 
 a_opc:"MULXMV"                is aacf0 & aop1_3=0b11 & aax1lh3 & aax0lh4 & aop5_8=0b101 {}
 a_opp:aax0lh4, aax1lh3, aacf0 is aacf0 & aop1_3=0b11 & aax1lh3 & aax0lh4 & aop5_8=0b101 {
 	aacf0 = prod;
 	prod = sext(aax0lh4) * sext(aax1lh3);
+	FLAGS40(aacf0);
 }
 
 a_opc:"MULC"       is aop0_3=0b000 & aaxh3 & aacm4 & aop5_8=0b110 {}
@@ -1045,25 +1087,28 @@ a_opp:aacm4, aaxh3 is aop0_3=0b000 & aaxh3 & aacm4 & aop5_8=0b110 {
 # Also, the order of the operands seems backwards from the other nearby instructions...
 a_opc:"CMPAR"      is aop0_3=0b001 & aacf3 & aaxh4 & aop5_8=0b110 {}
 a_opp:aacf3, aaxh4 is aop0_3=0b001 & aacf3 & aaxh4 & aop5_8=0b110 {
-	FLAGS(aacf3 - (sext(aaxh4) << 16));
+	FLAGS_SUB40(aacf3, (sext(aaxh4) << 16));
 }
 
 a_opc:"MULCMVZ"           is aacf0 & aop1_3=0b01 & aaxh3 & aacm4 & aop5_8=0b110 {}
 a_opp:aacm4, aaxh3, aacf0 is aacf0 & aop1_3=0b01 & aaxh3 & aacm4 & aop5_8=0b110 {
 	aacf0 = prod & 0xffffffff0000;
 	prod = sext(aacm4) * sext(aaxh3);
+	FLAGS40(aacf0);
 }
 
 a_opc:"MULCAC"            is aacf0 & aop1_3=0b10 & aaxh3 & aacm4 & aop5_8=0b110 {}
 a_opp:aacm4, aaxh3, aacf0 is aacf0 & aop1_3=0b10 & aaxh3 & aacm4 & aop5_8=0b110 {
 	aacf0 = aacf0 + prod;
 	prod = sext(aacm4) * sext(aaxh3);
+	FLAGS40(aacf0);
 }
 
 a_opc:"MULCMV"            is aacf0 & aop1_3=0b11 & aaxh3 & aacm4 & aop5_8=0b110  {}
 a_opp:aacm4, aaxh3, aacf0 is aacf0 & aop1_3=0b11 & aaxh3 & aacm4 & aop5_8=0b110 {
 	aacf0 = prod;
 	prod = sext(aacm4) * sext(aaxh3);
+	FLAGS40(aacf0);
 }
 
 a_opc:"MADDX"          is aax1lh0 & aax0lh1 & aop2_4=0b00 & aop4_8=0b1110 {}
@@ -1089,7 +1134,7 @@ a_opp:aacm1, aaxh0 is aaxh0 & aacm1 & aop2_4=0b11 & aop4_8=0b1110 {
 a_opc:"LSL16" is aacf0 & aop1_4=0b000 & aop4_8=0b1111 {}
 a_opp:aacf0   is aacf0 & aop1_4=0b000 & aop4_8=0b1111 {
 	aacf0 = aacf0 << 16;
-	FLAGS(aacf0);
+	FLAGS40(aacf0);
 }
 
 a_opc:"MADD"       is aaxl0 & aop1_4=0b001 & aop4_8=0b1111 & aaxh0 {}
@@ -1100,7 +1145,7 @@ a_opp:aaxl0, aaxh0 is aaxl0 & aop1_4=0b001 & aop4_8=0b1111 & aaxh0 {
 a_opc:"LSR16" is aacf0 & aop1_4=0b010 & aop4_8=0b1111 {}
 a_opp:aacf0   is aacf0 & aop1_4=0b010 & aop4_8=0b1111 {
 	aacf0 = aacf0 >> 16;
-	FLAGS(aacf0);
+	FLAGS40(aacf0);
 }
 
 a_opc:"MSUB"       is aaxl0 & aop1_4=0b011 & aop4_8=0b1111 & aaxh0 {}
@@ -1110,22 +1155,25 @@ a_opp:aaxl0, aaxh0 is aaxl0 & aop1_4=0b011 & aop4_8=0b1111 & aaxh0 {
 
 a_opc:"ADDPAXZ"    is aacf0 & aaxf1 & aop2_4=0b10 & aop4_8=0b1111 {}
 a_opp:aacf0, aaxf1 is aacf0 & aaxf1 & aop2_4=0b10 & aop4_8=0b1111 {
+	oldprod:6 = prod;
 	# TODO: Does the masking happen before or after?
 	# i.e. do prod.l and ax0.l/ax1.l affect the result?
 	aacf0 = (prod + sext(aaxf1)) & 0xffffffff0000;
-	FLAGS(aacf0);
+	# TODO: Why doesn't this set the overflow bit?
+	FLAGS40X(aacf0, oldprod > aacf0, 0);
 }
 
 a_opc:"CLRL" is aacl0 & aop1_4=0b110 & aop4_8=0b1111 & aacf0 {}
 a_opp:aacl0  is aacl0 & aop1_4=0b110 & aop4_8=0b1111 & aacf0 {
+	# TODO: This should be round-to-even
 	aacl0 = 0;
-	FLAGS(aacf0);
+	FLAGS40(aacf0);
 }
 
 a_opc:"MOVPZ" is aacf0 & aop1_4=0b111 & aop4_8=0b1111 {}
 a_opp:aacf0   is aacf0 & aop1_4=0b111 & aop4_8=0b1111 {
 	aacf0 = prod & 0xffffffff0000;
-	FLAGS(aacf0);
+	FLAGS40(aacf0);
 }
 
 # Define extension opcodes and opcode parameters.
