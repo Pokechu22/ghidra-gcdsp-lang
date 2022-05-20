@@ -799,13 +799,13 @@ a_opp:aacf0, aacm0_other is aacf0 & aop1=1 & aop2_4=3 & aop4_8=0b0011 & axbit=1 
 # Remaining arithmetic instructions, where aop4_8 != 0b0011:
 a_opc:"ADDR"        is aacf0 & aax1_2 & aop3=0 & aop4_8=0b0100 {}
 a_opp:aacf0, aax1_2 is aacf0 & aax1_2 & aop3=0 & aop4_8=0b0100 {
-	aacf0 = aacf0 + zext(aax1_2);  # TODO: Is this the right extension?
+	aacf0 = aacf0 + sext(aax1_2);
 	FLAGS(aacf0);
 }
 
 a_opc:"ADDAX"      is aacf0 & aaxf1 & aop2_4=2 & aop4_8=0b0100 {}
 a_opp:aacf0, aaxf1 is aacf0 & aaxf1 & aop2_4=2 & aop4_8=0b0100 {
-	aacf0 = aacf0 + zext(aaxf1);  # TODO: Is this the right extension?
+	aacf0 = aacf0 + sext(aaxf1);
 	FLAGS(aacf0);
 }
 
@@ -823,13 +823,13 @@ a_opp:aacf0  is aacf0 & aop1=1 & aop2_4=3 & aop4_8=0b0100 {
 
 a_opc:"SUBR"        is aacf0 & aax1_2 & aop3=0 & aop4_8=0b0101 {}
 a_opp:aacf0, aax1_2 is aacf0 & aax1_2 & aop3=0 & aop4_8=0b0101 {
-	aacf0 = aacf0 - zext(aax1_2);  # TODO: Is this the right extension?
+	aacf0 = aacf0 - sext(aax1_2);
 	FLAGS(aacf0);
 }
 
 a_opc:"SUBAX"      is aacf0 & aaxf1 & aop2_4=2 & aop4_8=0b0101 {}
 a_opp:aacf0, aaxf1 is aacf0 & aaxf1 & aop2_4=2 & aop4_8=0b0101 {
-	aacf0 = aacf0 - zext(aaxf1);  # TODO: Is this the right extension?
+	aacf0 = aacf0 - sext(aaxf1);
 	FLAGS(aacf0);
 }
 
@@ -855,7 +855,7 @@ a_opp:aacf0, aax1_2 is aacf0 & aax1_2 & aop3=0 & aop4_8=0b0110 {
 
 a_opc:"MOVAX"      is aacf0 & aaxf1 & aop2_4=2 & aop4_8=0b0110 {}
 a_opp:aacf0, aaxf1 is aacf0 & aaxf1 & aop2_4=2 & aop4_8=0b0110 {
-	aacf0 = zext(aaxf1);  # TODO: Is this the right extension?
+	aacf0 = sext(aaxf1);
 	FLAGS(aacf0);
 }
 
@@ -873,7 +873,7 @@ a_opp:aacf0  is aacf0 & aop1=1 & aop2_4=3 & aop4_8=0b0110 {
 
 a_opc:"ADDAXL"     is aacf0 & aaxl1 & aop2_4=0 & aop4_8=0b0111 {}
 a_opp:aacf0, aaxl1 is aacf0 & aaxl1 & aop2_4=0 & aop4_8=0b0111 {
-	aacf0 = aacf0 + zext(aaxl1);  # TODO: Is this the right extension?
+	aacf0 = aacf0 + zext(aaxl1);  # Note: unsigned extension
 	FLAGS(aacf0);
 }
 
@@ -1045,7 +1045,7 @@ a_opp:aacm4, aaxh3 is aop0_3=0b000 & aaxh3 & aacm4 & aop5_8=0b110 {
 # Also, the order of the operands seems backwards from the other nearby instructions...
 a_opc:"CMPAR"      is aop0_3=0b001 & aacf3 & aaxh4 & aop5_8=0b110 {}
 a_opp:aacf3, aaxh4 is aop0_3=0b001 & aacf3 & aaxh4 & aop5_8=0b110 {
-	FLAGS(aacf3 - (sext(aaxh4) << 16)); # TODO: Is this the right extension?
+	FLAGS(aacf3 - (sext(aaxh4) << 16));
 }
 
 a_opc:"MULCMVZ"           is aacf0 & aop1_3=0b01 & aaxh3 & aacm4 & aop5_8=0b110 {}
@@ -1112,7 +1112,6 @@ a_opc:"ADDPAXZ"    is aacf0 & aaxf1 & aop2_4=0b10 & aop4_8=0b1111 {}
 a_opp:aacf0, aaxf1 is aacf0 & aaxf1 & aop2_4=0b10 & aop4_8=0b1111 {
 	# TODO: Does the masking happen before or after?
 	# i.e. do prod.l and ax0.l/ax1.l affect the result?
-	# TODO: Also, sign extension?
 	aacf0 = (prod + sext(aaxf1)) & 0xffffffff0000;
 	FLAGS(aacf0);
 }
