@@ -541,7 +541,7 @@ op:"ILRRN" acm8, "@"^ar0_2, ix0_2 is ar0_2 & op2_4=3 & op4_8=1 & acm8 & op9_16=1
 
 # "Perform an additional operation depending on destination register"
 op:"ADDIS" acf8, SImm8 is SImm8 & acf8 & op9_16=0b0000010 & acs8 {
-	FLAGS_ADD40(acf8, sext(SImm8));
+	FLAGS_ADD40(acf8, sext(SImm8) << 16);
 	acs8 = acs8 + sext(SImm8);
 }
 op:"CMPIS" acf8, SImm8 is SImm8 & acf8 & op9_16=0b0000011 {
