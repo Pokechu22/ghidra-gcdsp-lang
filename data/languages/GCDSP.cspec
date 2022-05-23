@@ -10,10 +10,10 @@
     <prototype name="__stdcall" extrapop="0" stackshift="0">
       <input>
         <!-- This is a guess -->
-        <pentry minsize="6" maxsize="6">
+        <pentry minsize="5" maxsize="5">
           <register name="ac0"/>
         </pentry>
-        <pentry minsize="6" maxsize="6">
+        <pentry minsize="5" maxsize="5">
           <register name="ac1"/>
         </pentry>
         <pentry minsize="4" maxsize="4">
@@ -22,10 +22,10 @@
         <pentry minsize="4" maxsize="4">
           <register name="ax1"/>
         </pentry>
-        <pentry minsize="4" maxsize="4">
+        <pentry minsize="3" maxsize="3">
           <register name="acs0"/>
         </pentry>
-        <pentry minsize="4" maxsize="4">
+        <pentry minsize="3" maxsize="3">
           <register name="acs1"/>
         </pentry>
         <pentry minsize="2" maxsize="2" metatype="pointer">

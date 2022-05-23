@@ -30,16 +30,16 @@ define register offset=0x28 size=2 [ prod.l prod.m1 prod.h prod.m2 ]; # Product
 
 # Fake versions of the accumulator registers to make emulating them reasonable
 define register offset=0x80 size=2 [ ac0.h ac0.m ac0.l ];
-define register offset=0x80 size=6 [ ac0 ];
-define register offset=0x80 size=4 [ acs0 ]; # Short/mid accumulator, 24 bits
+define register offset=0x81 size=5 [ ac0 ];
+define register offset=0x81 size=3 [ acs0 ]; # Short/mid accumulator, 24 bits
 define register offset=0x90 size=2 [ ac1.h ac1.m ac1.l ];
-define register offset=0x90 size=6 [ ac1 ];
-define register offset=0x90 size=4 [ acs1 ]; # Short/mid accumulator, 24 bits
+define register offset=0x91 size=5 [ ac1 ];
+define register offset=0x91 size=3 [ acs1 ]; # Short/mid accumulator, 24 bits
 define register offset=0xA0 size=2 [ ax0.h ax0.l ];
 define register offset=0xA0 size=4 [ ax0 ];
 define register offset=0xB0 size=2 [ ax1.h ax1.l ];
 define register offset=0xB0 size=4 [ ax1 ];
-define register offset=0xC0 size=6 [ prod ];
+define register offset=0xC1 size=5 [ prod ];
 
 # Fake register for extra-fake purposes; hardware uses some of the stacks for this
 define register offset=0xF0 size=8 [ loopcontext ];
@@ -1155,7 +1155,7 @@ a_opp:aaxl0, aaxh0 is aaxl0 & aop1_4=0b011 & aop4_8=0b1111 & aaxh0 {
 
 a_opc:"ADDPAXZ"    is aacf0 & aaxf1 & aop2_4=0b10 & aop4_8=0b1111 {}
 a_opp:aacf0, aaxf1 is aacf0 & aaxf1 & aop2_4=0b10 & aop4_8=0b1111 {
-	oldprod:6 = prod;
+	oldprod:5 = prod;
 	# TODO: Does the masking happen before or after?
 	# i.e. do prod.l and ax0.l/ax1.l affect the result?
 	aacf0 = (prod + sext(aaxf1)) & 0xffffffff0000;
