@@ -276,7 +276,7 @@ sign_extend_reg5_10_after: is reg5_10=0x1F { SIGN_EXTEND_AC1M(); }
 attach variables [ ar0_2 ar5_7 ] [ ar0 ar1 ar2 ar3 ];
 attach variables [ ix2_4 ix5_7 ] [ ix0 ix1 ix2 ix3 ];
 
-attach variables [ reg5_8 ] [ ar0 ar1 ar2 ar3 ix0 ix1 ix2 ix3 ]; # TODO: This is a guess
+attach variables [ reg5_8 ] [ ar0 ar1 ar2 ar3 ix0 ix1 ix2 ix3 ];
 
 attach variables [ acm8 ] [ ac0.m ac1.m ]; # Middle of 40-bit accumulators
 attach variables [ acf8 ] [ ac0 ac1 ]; # Full 40-bit accumulators
@@ -1104,9 +1104,6 @@ a_opp:aaxh0    is aaxh0 & aop1_4=0b011 & aop4_8=0b1000 {
 	FLAGS16X(aaxh0, 0, 0, 0);
 }
 
-# TODO: These instructions are not documented in detail in the manual.
-# These opcodes are based on Dolphin's DSPTables.cpp and per
-# https://github.com/dolphin-emu/dolphin/blob/ffdc8538a162b1ca56e3943c5a78c02358053b2a/Source/Core/Core/DSP/Interpreter/DSPIntMisc.cpp#L148
 a_opc:"M2" is aop0_8=0b10001010 {}
 a_opp:""   is aop0_8=0b10001010 { $(SR_MUL_MODIFY) = 0; }  # 0 indicates modified behavior here
 
@@ -1161,7 +1158,6 @@ a_opp:aax0lh4, aax1lh3 is aop0_3=0b000 & aax1lh3 & aax0lh4 & aop5_8=0b101 & aaxh
 	prod = sext(aax0lh4) * sext(aax1lh3);
 }
 
-# TODO: Not listed in the manual
 a_opc:"ABS" is aop0_3=0b001 & aacf3 & aop4_8=0b1010 {}
 a_opp:aacf3 is aop0_3=0b001 & aacf3 & aop4_8=0b1010 {
 	aacf3 = abs(aacf3);
@@ -1199,8 +1195,6 @@ a_opp:aacm4, aaxh3 is aop0_3=0b000 & aaxh3 & aacm4 & aop5_8=0b110 {
 	prod = sext(aacm4) * sext(aaxh3);
 }
 
-# TODO: Not documented in the manual
-# Also, the order of the operands seems backwards from the other nearby instructions...
 a_opc:"CMPAR"      is aop0_3=0b001 & aacf3 & aaxh4 & aop5_8=0b110 {}
 a_opp:aacf3, aaxh4 is aop0_3=0b001 & aacf3 & aaxh4 & aop5_8=0b110 {
 	FLAGS_SUB40(aacf3, (sext(aaxh4) << 16));
@@ -1237,7 +1231,6 @@ a_opp:aax0lh1, aax1lh0 is aax1lh0 & aax0lh1 & aop2_4=0b01 & aop4_8=0b1110 {
 	prod = prod - (sext(aax0lh1) * sext(aax1lh0));
 }
 
-# Docs are ambiguous about if it uses acS.l or acS.m, but say to use m for MSUBC, so I assume this is a typo
 a_opc:"MADDC"      is aaxh0 & aacm1 & aop2_4=0b10 & aop4_8=0b1110 {}
 a_opp:aacm1, aaxh0 is aaxh0 & aacm1 & aop2_4=0b10 & aop4_8=0b1110 {
 	prod = prod + (sext(aacm1) * sext(aaxh0));
@@ -1319,8 +1312,6 @@ ext_opp0:xac3_6, "@"^xar0_2 is xar0_2 & xop2=0 & xac3_6 & xop6=1 & sign_extend_x
 ext_opc0:"LN"                       is xar0_2 & xix0_2 & xop2=1 & xac3_6 & xop6=1 {}
 ext_opp0:xac3_6, "@"^xar0_2, xix0_2 is xar0_2 & xix0_2 & xop2=1 & xac3_6 & xop6=1 & sign_extend_xac3_6_after { xac3_6 = *:2 xar0_2; xar0_2 = xar0_2 + xix0_2; build sign_extend_xac3_6_after; }
 
-# 'LN and 'LS have the same encoding in the manual
-# I've assumed 01ddd1ss should instead be 10dd000s, to match the table and other 'LS variants
 ext_opc1:"LS"          is xacm0 & xop1=0 & xop2_4=0 & xax4_6 & xop6=0 {}
 ext_opp1:xax4_6, xacm0 is xacm0 & xop1=0 & xop2_4=0 & xax4_6 & xop6=0 & saturated_xacm0 {
 	xax4_6 = *:2 ar0;
@@ -1392,13 +1383,10 @@ ext_opp1:xacm0, xax4_6 is xacm0 & xop1=1 & xop2_4=3 & xax4_6 & xop6=0 & saturate
 	ar3 = ar3 + ix3;
 }
 
-# TODO: These aren't properly documented in the manual (though they do appear in the table at the end)
-# The LDAX variants are called LD2 in the manual.  LDAX is dolphin's name.
 # LD loads to both AX0 and AX1, with the instruction choosing separately for AX0.l vs AX0.h and AX1.l vs AX1.h.
 # ax0 is set to the memory value pointed by a choice of AR0/1/2, while ax1 is set to the memory value pointed by AR3.
 # AR3 cannot be used for the first value, as that encodes LDAX instead.  The address registers are increased by 1 or
 # the corresponding index register (depending on M/N like the other extension instructions).
-# Unlike what the manual says, the MN selection is bits 2 and 3.
 ext_opc1:"LD"                         is xar0_2 & xop2_4=0 & xax1lh4 & xax0lh5 & xop6=1 {}
 ext_opp1:xax0lh5, xax1lh4, "@"^xar0_2 is xar0_2 & xop2_4=0 & xax1lh4 & xax0lh5 & xop6=1 {
 	xax0lh5 = *:2 xar0_2;
@@ -1476,7 +1464,8 @@ ext_opp:ext_opp1 is ext_opp1 & (axbit=1 & aop4_8!=0b0011) { build ext_opp1; }
 # Combine arithmetic ops and extension ops
 op:^a_opc^"'"^ext_opc a_opp ":" ext_opp is a_opc & a_opp & ext_opc & ext_opp { build a_opp; build ext_opp; }
 
-# Although the manual doesn't mention it, if the extension opcode is set to 0, it seems like it's a NOP.
+# If the extension opcode is set to 0, it seems like it's a NOP.
+# We could explicitly show 'NOP here, but that just adds noise for no benefit.
 op:^a_opc a_opp is a_opc & a_opp & (axbit=0 | aop4_8=0b0011) & xop0_7=0 { build a_opp; }
 
 LoopSkipAddrWrapper: loopskipaddr is loopskipaddr { export *[inst]:2 loopskipaddr; }
