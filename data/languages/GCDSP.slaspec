@@ -1362,32 +1362,32 @@ ext_opp0:"@"^xar0_2, xac3_5, xix0_2 is xar0_2 & xop2=1 & xac3_5 & xop5=1 & xop6=
 
 ext_opc1:"SL"          is xacm0 & xop1=1 & xop2_4=0 & xax4_6 & xop6=0 {}
 ext_opp1:xacm0, xax4_6 is xacm0 & xop1=1 & xop2_4=0 & xax4_6 & xop6=0 & saturated_xacm0 {
-	xax4_6 = *:2 ar0;
-	*:2 ar3 = saturated_xacm0;
+	xax4_6 = *:2 ar3;
+	*:2 ar0 = saturated_xacm0;
 	ar0 = ar0 + 1;
 	ar3 = ar3 + 1;
 }
 
 ext_opc1:"SLN"         is xacm0 & xop1=1 & xop2_4=1 & xax4_6 & xop6=0 {}
 ext_opp1:xacm0, xax4_6 is xacm0 & xop1=1 & xop2_4=1 & xax4_6 & xop6=0 & saturated_xacm0 {
-	xax4_6 = *:2 ar0;
-	*:2 ar3 = saturated_xacm0;
+	xax4_6 = *:2 ar3;
+	*:2 ar0 = saturated_xacm0;
 	ar0 = ar0 + ix0;
 	ar3 = ar3 + 1;
 }
 
 ext_opc1:"SLM"         is xacm0 & xop1=1 & xop2_4=2 & xax4_6 & xop6=0 {}
 ext_opp1:xacm0, xax4_6 is xacm0 & xop1=1 & xop2_4=2 & xax4_6 & xop6=0 & saturated_xacm0 {
-	xax4_6 = *:2 ar0;
-	*:2 ar3 = saturated_xacm0;
+	xax4_6 = *:2 ar3;
+	*:2 ar0 = saturated_xacm0;
 	ar0 = ar0 + 1;
 	ar3 = ar3 + ix3;
 }
 
 ext_opc1:"SLNM"        is xacm0 & xop1=1 & xop2_4=3 & xax4_6 & xop6=0 {}
 ext_opp1:xacm0, xax4_6 is xacm0 & xop1=1 & xop2_4=3 & xax4_6 & xop6=0 & saturated_xacm0 {
-	xax4_6 = *:2 ar0;
-	*:2 ar3 = saturated_xacm0;
+	xax4_6 = *:2 ar3;
+	*:2 ar0 = saturated_xacm0;
 	ar0 = ar0 + ix0;
 	ar3 = ar3 + ix3;
 }
