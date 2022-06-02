@@ -1195,7 +1195,7 @@ a_opp:aacm4, aaxh3 is aop0_3=0b000 & aaxh3 & aacm4 & aop5_8=0b110 {
 	prod = sext(aacm4) * sext(aaxh3);
 }
 
-a_opc:"CMPAR"      is aop0_3=0b001 & aacf3 & aaxh4 & aop5_8=0b110 {}
+a_opc:"CMPAXH"     is aop0_3=0b001 & aacf3 & aaxh4 & aop5_8=0b110 {}
 a_opp:aacf3, aaxh4 is aop0_3=0b001 & aacf3 & aaxh4 & aop5_8=0b110 {
 	FLAGS_SUB40(aacf3, (sext(aaxh4) << 16));
 }
