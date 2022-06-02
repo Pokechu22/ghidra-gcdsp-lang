@@ -10,6 +10,13 @@
 # Assume CR is always set to 0x00ff - makes LRS and SRS disassemble better
 # This assumption is violated for Zelda uCode.
 @define SIMPLIFY_CR
+# Apply sign-extension to writes to $ac0.m and $ac1.m when the processor says it should happen
+# When disabled, 16-bit mode is always assumed.
+@define USE_40_BIT_SIGN_EXTENSION
+# Always apply sign-extension (needs the above to be not be defined)
+# This gets rid of a check on SR_40_MODE, which results in cleaner code,
+# but the results will be incorrect.
+#@define ALWAYS_USE_40_BIT_SIGN_EXTENSION
 
 define endian=big;
 define alignment=2;
@@ -183,6 +190,37 @@ attach variables [ reg0_5 reg5_10 ] [
 	ac0.l ac1.l ac0.m ac1.m
 ];
 
+macro SIGN_EXTEND_AC0M() {
+@ifdef USE_40_BIT_SIGN_EXTENSION
+@ifndef ALWAYS_USE_40_BIT_SIGN_EXTENSION
+	if (!$(SR_40_MODE)) goto <done>;
+@endif
+	ac0 = sext(ac0.m) << 16;
+@ifndef ALWAYS_USE_40_BIT_SIGN_EXTENSION
+	<done>
+@endif
+@endif
+}
+macro SIGN_EXTEND_AC1M() {
+@ifdef USE_40_BIT_SIGN_EXTENSION
+@ifndef ALWAYS_USE_40_BIT_SIGN_EXTENSION
+	if (!$(SR_40_MODE)) goto <done>;
+@endif
+	ac1 = sext(ac1.m) << 16;
+@ifndef ALWAYS_USE_40_BIT_SIGN_EXTENSION
+	<done>
+@endif
+@endif
+}
+
+sign_extend_reg0_5_after: is reg0_5 {}
+sign_extend_reg0_5_after: is reg0_5=0x1E { SIGN_EXTEND_AC0M(); }
+sign_extend_reg0_5_after: is reg0_5=0x1F { SIGN_EXTEND_AC1M(); }
+
+sign_extend_reg5_10_after: is reg5_10 {}
+sign_extend_reg5_10_after: is reg5_10=0x1E { SIGN_EXTEND_AC0M(); }
+sign_extend_reg5_10_after: is reg5_10=0x1F { SIGN_EXTEND_AC1M(); }
+
 attach variables [ ar0_2 ar5_7 ] [ ar0 ar1 ar2 ar3 ];
 attach variables [ ix2_4 ix5_7 ] [ ix0 ix1 ix2 ix3 ];
 
@@ -194,6 +232,13 @@ attach variables [ acs8 ] [ acs0 acs1 ]; # 24 bits of 40-bit accumulators
 attach variables [ ac8_11 ] [ ax0.l ax1.l ax0.h ax1.h ac0.l ac1.l ac0.m ac1.m ]; # 3-bit field referring to a register starting at 0x18 (ax0.l)
 attach variables [ ac8_10 ] [ ac0.l ac1.l ac0.m ac1.m ]; # 2-bit field referring to a register starting at 0x1C (ac0.l)
 attach variables [ ach8 ] [ ac0.h ac1.h ]; # Top of 40-bit accumulators
+
+sign_extend_acm8_after: is acm8=0 { SIGN_EXTEND_AC0M(); }
+sign_extend_acm8_after: is acm8=1 { SIGN_EXTEND_AC1M(); }
+
+sign_extend_ac8_11_after: is ac8_11 {}
+sign_extend_ac8_11_after: is ac8_11=6 { SIGN_EXTEND_AC0M(); }
+sign_extend_ac8_11_after: is ac8_11=7 { SIGN_EXTEND_AC1M(); }
 
 @ifdef USE_REAL_SR_REGISTER
 # Offset by 6
@@ -311,6 +356,10 @@ attach variables [ xax2_4 xax4_6 ] [ ax0.l ax1.l ax0.h ax1.h ]; # 2-bit field re
 attach variables [ xac0_2 xac3_5 xac4_6 ] [ ac0.l ac1.l ac0.m ac1.m ]; # 2-bit field referring to a register starting at 0x1C (ac0.l)
 attach variables [ xacm0 ] [ ac0.m ac1.m ];
 
+sign_extend_xac3_6_after: is xac3_6 {}
+sign_extend_xac3_6_after: is xac3_6=6 { SIGN_EXTEND_AC0M(); }
+sign_extend_xac3_6_after: is xac3_6=7 { SIGN_EXTEND_AC1M(); }
+
 attach variables [ xax0lh5 ] [ ax0.l ax0.h ];
 attach variables [ xax1lh4 ] [ ax1.l ax1.h ];
 
@@ -419,16 +468,16 @@ op:"BLOOP" reg0_5, Addr16After is reg0_5 & op5_8=0b011 & op8_16=0; Addr16 & Addr
 	st3 = reg0_5;
 }
 
-op:"LRI" reg0_5, Imm16 is reg0_5 & op5_8=0b100 & op8_16=0; Imm16 {
+op:"LRI" reg0_5, Imm16 is reg0_5 & op5_8=0b100 & op8_16=0 & sign_extend_reg0_5_after; Imm16 {
 	reg0_5 = Imm16;
-	# "Perform an additional operation depending on destination register"
+	build sign_extend_reg0_5_after;
 }
 
 # No instruction with op5_8=0b101 & op8_16=0
 
-op:"LR" reg0_5, Mem16 is reg0_5 & op5_8=0b110 & op8_16=0; Mem16 {
+op:"LR" reg0_5, Mem16 is reg0_5 & op5_8=0b110 & op8_16=0 & sign_extend_reg0_5_after; Mem16 {
 	reg0_5 = Mem16;
-	# "Perform an additional operation depending on destination register"
+	build sign_extend_reg0_5_after;
 }
 
 op:"SR" Mem16, reg0_5 is reg0_5 & op5_8=0b111 & op8_16=0; Mem16 {
@@ -519,24 +568,28 @@ op:"ANDCF" acm8, Imm16 is op0_4=0 & op4_8=0b1100 & acm8 & op9_16=1; Imm16 {
 	$(SR_LOGIC_ZERO) = ((acm8 & Imm16) == Imm16);
 }
 
-op:"ILRR" acm8, "@"^ar0_2 is ar0_2 & op2_4=0 & op4_8=1 & acm8 & op9_16=1 {
+op:"ILRR" acm8, "@"^ar0_2 is ar0_2 & op2_4=0 & op4_8=1 & acm8 & op9_16=1 & sign_extend_acm8_after {
 	acm8 = *[inst]:2 ar0_2;
+	build sign_extend_acm8_after;
 }
 
-op:"ILRRD" acm8, "@"^ar0_2 is ar0_2 & op2_4=1 & op4_8=1 & acm8 & op9_16=1 {
+op:"ILRRD" acm8, "@"^ar0_2 is ar0_2 & op2_4=1 & op4_8=1 & acm8 & op9_16=1 & sign_extend_acm8_after {
 	acm8 = *[inst]:2 ar0_2;
 	ar0_2 = ar0_2 - 1;
+	build sign_extend_acm8_after;
 }
 
-op:"ILRRI" acm8, "@"^ar0_2 is ar0_2 & op2_4=2 & op4_8=1 & acm8 & op9_16=1 {
+op:"ILRRI" acm8, "@"^ar0_2 is ar0_2 & op2_4=2 & op4_8=1 & acm8 & op9_16=1 & sign_extend_acm8_after {
 	acm8 = *[inst]:2 ar0_2;
 	ar0_2 = ar0_2 + 1;
+	build sign_extend_acm8_after;
 }
 
 # ar0_2 and ix0_2 are the same bits in the instruction.  The manual doesn't show ix0_2, but I've included it in the disassembly.
-op:"ILRRN" acm8, "@"^ar0_2, ix0_2 is ar0_2 & op2_4=3 & op4_8=1 & acm8 & op9_16=1 & ix0_2 {
+op:"ILRRN" acm8, "@"^ar0_2, ix0_2 is ar0_2 & op2_4=3 & op4_8=1 & acm8 & op9_16=1 & ix0_2 & sign_extend_acm8_after {
 	acm8 = *[inst]:2 ar0_2;
 	ar0_2 = ar0_2 + ix0_2;
+	build sign_extend_acm8_after;
 }
 
 # "Perform an additional operation depending on destination register"
@@ -547,8 +600,9 @@ op:"ADDIS" acf8, SImm8 is SImm8 & acf8 & op9_16=0b0000010 & acs8 {
 op:"CMPIS" acf8, SImm8 is SImm8 & acf8 & op9_16=0b0000011 {
 	FLAGS_SUB40(acf8, sext(SImm8) << 16);
 }
-op:"LRIS" ac8_11, SImm8 is SImm8 & ac8_11 & op11_16=0b00001 {
+op:"LRIS" ac8_11, SImm8 is SImm8 & ac8_11 & op11_16=0b00001 & sign_extend_ac8_11_after {
 	ac8_11 = SImm8;
+	build sign_extend_ac8_11_after;
 }
 
 op:"LOOPI" Imm8 is Imm8 & op8_16=0b00010000 [
@@ -704,24 +758,24 @@ op:"JR"^cc reg5_8 is cc & op5=0 & reg5_8 & op8_16=0b00010111 {
 	goto [reg5_8];
 }
 
-op:"LRR"  reg0_5, "@"^ar5_7 is reg0_5 & ar5_7 & op7_9=0b00 & op9_16=0b0001100 {
+op:"LRR"  reg0_5, "@"^ar5_7 is reg0_5 & ar5_7 & op7_9=0b00 & op9_16=0b0001100 & sign_extend_reg0_5_after {
 	reg0_5 = *:2 ar5_7;
-	# "Perform an additional operation depending on destination register"
+	build sign_extend_reg0_5_after;
 }
-op:"LRRD" reg0_5, "@"^ar5_7 is reg0_5 & ar5_7 & op7_9=0b01 & op9_16=0b0001100 {
+op:"LRRD" reg0_5, "@"^ar5_7 is reg0_5 & ar5_7 & op7_9=0b01 & op9_16=0b0001100 & sign_extend_reg0_5_after {
 	reg0_5 = *:2 ar5_7;
 	ar5_7 = ar5_7 - 1;
-	# "Perform an additional operation depending on destination register"
+	build sign_extend_reg0_5_after;
 }
-op:"LRRI" reg0_5, "@"^ar5_7 is reg0_5 & ar5_7 & op7_9=0b10 & op9_16=0b0001100 {
+op:"LRRI" reg0_5, "@"^ar5_7 is reg0_5 & ar5_7 & op7_9=0b10 & op9_16=0b0001100 & sign_extend_reg0_5_after {
 	reg0_5 = *:2 ar5_7;
 	ar5_7 = ar5_7 + 1;
-	# "Perform an additional operation depending on destination register"
+	build sign_extend_reg0_5_after;
 }
-op:"LRRN" reg0_5, "@"^ar5_7, ix5_7 is reg0_5 & ar5_7 & op7_9=0b11 & op9_16=0b0001100 & ix5_7 {
+op:"LRRN" reg0_5, "@"^ar5_7, ix5_7 is reg0_5 & ar5_7 & op7_9=0b11 & op9_16=0b0001100 & ix5_7 & sign_extend_reg0_5_after {
 	reg0_5 = *:2 ar5_7;
 	ar5_7 = ar5_7 + ix5_7;  # ar5_7 and ix5_7 are the same bits in the instruction.  I've included it in the disassembly, but it's not like that in the manual.
-	# "Perform an additional operation depending on destination register"
+	build sign_extend_reg0_5_after;
 }
 
 op:"SRR"  "@"^ar5_7, reg0_5 is reg0_5 & ar5_7 & op7_9=0b00 & op9_16=0b0001101 {
@@ -744,12 +798,14 @@ op:"SRRN" "@"^ar5_7, reg0_5, ix5_7 is reg0_5 & ar5_7 & op7_9=0b11 & op9_16=0b000
 	# "Perform an additional operation depending on destination register"
 }
 
-op:"MRR" reg5_10, reg0_5 is reg0_5 & reg5_10 & op10_16=0b000111 {
+op:"MRR" reg5_10, reg0_5 is reg0_5 & reg5_10 & op10_16=0b000111 & sign_extend_reg5_10_after {
 	reg5_10 = reg0_5;
+	build sign_extend_reg5_10_after;
 }
 
-op:"LRS" ac8_11, Mem8CR is Mem8CR & ac8_11 & op11_16=0b00100 {
+op:"LRS" ac8_11, Mem8CR is Mem8CR & ac8_11 & op11_16=0b00100 & sign_extend_ac8_11_after {
 	ac8_11 = Mem8CR;
+	build sign_extend_ac8_11_after;
 }
 # 0b0010 100s mmmm mmmm
 op:"SRSH" Mem8CR, ach8 is Mem8CR & ach8 & op9_16=0b0010100 {
@@ -1197,11 +1253,11 @@ ext_opc0:"MV"           is xac0_2 & xax2_4 & xop4_7=1 {}
 ext_opp0:xax2_4, xac0_2 is xac0_2 & xax2_4 & xop4_7=1 { xax2_4 = xac0_2; }
 
 ext_opc0:"L"                is xar0_2 & xop2=0 & xac3_6 & xop6=1 {}
-ext_opp0:xac3_6, "@"^xar0_2 is xar0_2 & xop2=0 & xac3_6 & xop6=1 { xac3_6 = *:2 xar0_2; xar0_2 = xar0_2 + 1; }
+ext_opp0:xac3_6, "@"^xar0_2 is xar0_2 & xop2=0 & xac3_6 & xop6=1 & sign_extend_xac3_6_after { xac3_6 = *:2 xar0_2; xar0_2 = xar0_2 + 1; build sign_extend_xac3_6_after; }
 
 # xar0_2 and xix0_2 are the same bits in the instruction.  The manual doesn't show xix0_2, but I've included it in the disassembly.
 ext_opc0:"LN"                       is xar0_2 & xix0_2 & xop2=1 & xac3_6 & xop6=1 {}
-ext_opp0:xac3_6, "@"^xar0_2, xix0_2 is xar0_2 & xix0_2 & xop2=1 & xac3_6 & xop6=1 { xac3_6 = *:2 xar0_2; xar0_2 = xar0_2 + xix0_2; }
+ext_opp0:xac3_6, "@"^xar0_2, xix0_2 is xar0_2 & xix0_2 & xop2=1 & xac3_6 & xop6=1 & sign_extend_xac3_6_after { xac3_6 = *:2 xar0_2; xar0_2 = xar0_2 + xix0_2; build sign_extend_xac3_6_after; }
 
 # 'LN and 'LS have the same encoding in the manual
 # I've assumed 01ddd1ss should instead be 10dd000s, to match the table and other 'LS variants
