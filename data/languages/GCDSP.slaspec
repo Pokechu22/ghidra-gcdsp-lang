@@ -17,6 +17,9 @@
 # This gets rid of a check on SR_40_MODE, which results in cleaner code,
 # but the results will be incorrect.
 #@define ALWAYS_USE_40_BIT_SIGN_EXTENSION
+# Apply saturation to reads from $ac0.m and $ac1.m when the processor says it should happen
+# When disabled, 16-bit mode is always assumed. Enabling results in much messier code.
+#@define USE_40_BIT_SATURATION
 
 define endian=big;
 define alignment=2;
@@ -213,9 +216,58 @@ macro SIGN_EXTEND_AC1M() {
 @endif
 }
 
+# According to 7.9. P-code Macros:
+# Parameters are passed by reference, so the value of varnodes passed into the macro can be changed.
+# Currently, there is no syntax for returning a value from the macro,
+# except by writing to a parameter or global symbol.
+macro GET_SATURATED_AC0M(dest) {
+@ifdef USE_40_BIT_SATURATION
+	# If the 40-bit mode is disabled, no saturation is needed.
+	if (!$(SR_40_MODE)) goto <no_saturation_needed>;
+	# If the accumulator is the same as its s32 version, no saturation is needed.
+	if (ac0 == sext(ac0:4)) goto <no_saturation_needed>;
+	# Saturation is needed; check if it needs to be be positive or negative.
+	if (ac0 s< 0) goto <negative_saturation>;
+	# Positive
+	dest = 0x7fff;
+	goto <done>;
+	<negative_saturation>
+	dest = 0x8000;
+	goto <done>;
+	<no_saturation_needed>
+@endif
+	dest = ac0.m;
+	goto <done>;
+	<done>
+}
+macro GET_SATURATED_AC1M(dest) {
+@ifdef USE_40_BIT_SATURATION
+	# If the 40-bit mode is disabled, no saturation is needed.
+	if (!$(SR_40_MODE)) goto <no_saturation_needed>;
+	# If the accumulator is the same as its s32 version, no saturation is needed.
+	if (ac1 == sext(ac1:4)) goto <no_saturation_needed>;
+	# Saturation is needed; check if it needs to be be positive or negative.
+	if (ac1 s< 0) goto <negative_saturation>;
+	# Positive
+	dest = 0x7fff;
+	goto <done>;
+	<negative_saturation>
+	dest = 0x8000;
+	goto <done>;
+	<no_saturation_needed>
+@endif
+	dest = ac1.m;
+	goto <done>;
+	<done>
+}
+
 sign_extend_reg0_5_after: is reg0_5 {}
 sign_extend_reg0_5_after: is reg0_5=0x1E { SIGN_EXTEND_AC0M(); }
 sign_extend_reg0_5_after: is reg0_5=0x1F { SIGN_EXTEND_AC1M(); }
+
+saturated_reg0_5: is reg0_5 { export reg0_5; }
+saturated_reg0_5: is reg0_5=0x1E { local tmp:2; GET_SATURATED_AC0M(tmp); export tmp; }
+saturated_reg0_5: is reg0_5=0x1F { local tmp:2; GET_SATURATED_AC1M(tmp); export tmp; }
 
 sign_extend_reg5_10_after: is reg5_10 {}
 sign_extend_reg5_10_after: is reg5_10=0x1E { SIGN_EXTEND_AC0M(); }
@@ -239,6 +291,10 @@ sign_extend_acm8_after: is acm8=1 { SIGN_EXTEND_AC1M(); }
 sign_extend_ac8_11_after: is ac8_11 {}
 sign_extend_ac8_11_after: is ac8_11=6 { SIGN_EXTEND_AC0M(); }
 sign_extend_ac8_11_after: is ac8_11=7 { SIGN_EXTEND_AC1M(); }
+
+saturated_ac8_10: is ac8_10 { export ac8_10; }
+saturated_ac8_10: is ac8_10=2 { local tmp:2; GET_SATURATED_AC0M(tmp); export tmp; }
+saturated_ac8_10: is ac8_10=3 { local tmp:2; GET_SATURATED_AC1M(tmp); export tmp; }
 
 @ifdef USE_REAL_SR_REGISTER
 # Offset by 6
@@ -319,7 +375,6 @@ define token axopbyte (16)
 	xax4_6 = (4, 5) # 32-bit accumulator
 	xac0_2 = (0, 1) # 40-bit accumulator
 	xac3_5 = (3, 4) # 40-bit accumulator
-	xac4_6 = (4, 5) # 40-bit accumulator
 	xacm0  = (0, 0) # Either ac0.m or ac1.m
 
 	xax0lh5 = (5, 5) # Either ax0.l or ax0.h
@@ -353,12 +408,23 @@ attach variables [ xar0_2 ] [ ar0 ar1 ar2 ar3 ];
 attach variables [ xix0_2 ] [ ix0 ix1 ix2 ix3 ];
 attach variables [ xac3_6 ] [ ax0.l ax1.l ax0.h ax1.h ac0.l ac1.l ac0.m ac1.m ]; # 3-bit field referring to a register starting at 0x18 (ax0.l)
 attach variables [ xax2_4 xax4_6 ] [ ax0.l ax1.l ax0.h ax1.h ]; # 2-bit field referring to a register starting at 0x18 (ax0.l)
-attach variables [ xac0_2 xac3_5 xac4_6 ] [ ac0.l ac1.l ac0.m ac1.m ]; # 2-bit field referring to a register starting at 0x1C (ac0.l)
+attach variables [ xac0_2 xac3_5 ] [ ac0.l ac1.l ac0.m ac1.m ]; # 2-bit field referring to a register starting at 0x1C (ac0.l)
 attach variables [ xacm0 ] [ ac0.m ac1.m ];
 
 sign_extend_xac3_6_after: is xac3_6 {}
 sign_extend_xac3_6_after: is xac3_6=6 { SIGN_EXTEND_AC0M(); }
 sign_extend_xac3_6_after: is xac3_6=7 { SIGN_EXTEND_AC1M(); }
+
+saturated_xac0_2: is xac0_2 { export xac0_2; }
+saturated_xac0_2: is xac0_2=2 { local tmp:2; GET_SATURATED_AC0M(tmp); export tmp; }
+saturated_xac0_2: is xac0_2=3 { local tmp:2; GET_SATURATED_AC1M(tmp); export tmp; }
+
+saturated_xac3_5: is xac3_5 { export xac3_5; }
+saturated_xac3_5: is xac3_5=2 { local tmp:2; GET_SATURATED_AC0M(tmp); export tmp; }
+saturated_xac3_5: is xac3_5=3 { local tmp:2; GET_SATURATED_AC1M(tmp); export tmp; }
+
+saturated_xacm0: is xacm0=0 { local tmp:2; GET_SATURATED_AC0M(tmp); export tmp; }
+saturated_xacm0: is xacm0=1 { local tmp:2; GET_SATURATED_AC1M(tmp); export tmp; }
 
 attach variables [ xax0lh5 ] [ ax0.l ax0.h ];
 attach variables [ xax1lh4 ] [ ax1.l ax1.h ];
@@ -438,7 +504,7 @@ op:"HALT" is op0_4=0b0001 & op4_8=0b0010 & op8_16=0 {
 	goto inst_start; # Infinite loop
 }
 
-op:"LOOP" reg0_5          is reg0_5 & op5_8=0b010 & op8_16=0 [
+op:"LOOP" reg0_5          is reg0_5 & op5_8=0b010 & op8_16=0 & saturated_reg0_5 [
 	hasloopcheck = 1;
 	hasloopjumpback = 1;
 	loopskipaddr = inst_start + 2;
@@ -448,12 +514,12 @@ op:"LOOP" reg0_5          is reg0_5 & op5_8=0b010 & op8_16=0 [
 	globalset(inst_next, loopskipaddr);
 	globalset(inst_next, loopjumpbackaddr);
 ] {
-	st3 = reg0_5;
+	st3 = saturated_reg0_5;
 }
 @ifndef BLOOP_ONE_AFTER
-op:"BLOOP" reg0_5, Addr16 is reg0_5 & op5_8=0b011 & op8_16=0; Addr16 & imm16
+op:"BLOOP" reg0_5, Addr16 is reg0_5 & op5_8=0b011 & op8_16=0 & saturated_reg0_5; Addr16 & imm16
 @else
-op:"BLOOP" reg0_5, Addr16After is reg0_5 & op5_8=0b011 & op8_16=0; Addr16 & Addr16After & imm16
+op:"BLOOP" reg0_5, Addr16After is reg0_5 & op5_8=0b011 & op8_16=0 & saturated_reg0_5; Addr16 & Addr16After & imm16
 @endif
 [
 	hasloopcheck = 1;
@@ -465,7 +531,7 @@ op:"BLOOP" reg0_5, Addr16After is reg0_5 & op5_8=0b011 & op8_16=0; Addr16 & Addr
 	globalset(inst_next, loopskipaddr);
 	globalset(Addr16, loopjumpbackaddr);
 ] {
-	st3 = reg0_5;
+	st3 = saturated_reg0_5;
 }
 
 op:"LRI" reg0_5, Imm16 is reg0_5 & op5_8=0b100 & op8_16=0 & sign_extend_reg0_5_after; Imm16 {
@@ -480,9 +546,8 @@ op:"LR" reg0_5, Mem16 is reg0_5 & op5_8=0b110 & op8_16=0 & sign_extend_reg0_5_af
 	build sign_extend_reg0_5_after;
 }
 
-op:"SR" Mem16, reg0_5 is reg0_5 & op5_8=0b111 & op8_16=0; Mem16 {
-	Mem16 = reg0_5;
-	# "Perform an additional operation depending on destination register"
+op:"SR" Mem16, reg0_5 is reg0_5 & op5_8=0b111 & op8_16=0 & saturated_reg0_5; Mem16 {
+	Mem16 = saturated_reg0_5;
 }
 
 cc: "GE"  is cc0_4=0b0000 { c:1 = ($(SR_OVERFLOW) == $(SR_SIGN)); export c; }
@@ -592,7 +657,6 @@ op:"ILRRN" acm8, "@"^ar0_2, ix0_2 is ar0_2 & op2_4=3 & op4_8=1 & acm8 & op9_16=1
 	build sign_extend_acm8_after;
 }
 
-# "Perform an additional operation depending on destination register"
 op:"ADDIS" acf8, SImm8 is SImm8 & acf8 & op9_16=0b0000010 & acs8 {
 	FLAGS_ADD40(acf8, sext(SImm8) << 16);
 	acs8 = acs8 + sext(SImm8);
@@ -778,28 +842,24 @@ op:"LRRN" reg0_5, "@"^ar5_7, ix5_7 is reg0_5 & ar5_7 & op7_9=0b11 & op9_16=0b000
 	build sign_extend_reg0_5_after;
 }
 
-op:"SRR"  "@"^ar5_7, reg0_5 is reg0_5 & ar5_7 & op7_9=0b00 & op9_16=0b0001101 {
-	*:2 ar5_7 = reg0_5;
-	# "Perform an additional operation depending on destination register"
+op:"SRR"  "@"^ar5_7, reg0_5 is reg0_5 & ar5_7 & op7_9=0b00 & op9_16=0b0001101 & saturated_reg0_5 {
+	*:2 ar5_7 = saturated_reg0_5;
 }
-op:"SRRD" "@"^ar5_7, reg0_5 is reg0_5 & ar5_7 & op7_9=0b01 & op9_16=0b0001101 {
-	*:2 ar5_7 = reg0_5;
+op:"SRRD" "@"^ar5_7, reg0_5 is reg0_5 & ar5_7 & op7_9=0b01 & op9_16=0b0001101 & saturated_reg0_5 {
+	*:2 ar5_7 = saturated_reg0_5;
 	ar5_7 = ar5_7 - 1;
-	# "Perform an additional operation depending on destination register"
 }
-op:"SRRI" "@"^ar5_7, reg0_5 is reg0_5 & ar5_7 & op7_9=0b10 & op9_16=0b0001101 {
-	*:2 ar5_7 = reg0_5;
+op:"SRRI" "@"^ar5_7, reg0_5 is reg0_5 & ar5_7 & op7_9=0b10 & op9_16=0b0001101 & saturated_reg0_5 {
+	*:2 ar5_7 = saturated_reg0_5;
 	ar5_7 = ar5_7 + 1;
-	# "Perform an additional operation depending on destination register"
 }
-op:"SRRN" "@"^ar5_7, reg0_5, ix5_7 is reg0_5 & ar5_7 & op7_9=0b11 & op9_16=0b0001101 & ix5_7 {
-	*:2 ar5_7 = reg0_5;
+op:"SRRN" "@"^ar5_7, reg0_5, ix5_7 is reg0_5 & ar5_7 & op7_9=0b11 & op9_16=0b0001101 & ix5_7 & saturated_reg0_5 {
+	*:2 ar5_7 = saturated_reg0_5;
 	ar5_7 = ar5_7 + ix5_7;  # ar5_7 and ix5_7 are the same bits in the instruction.  I've included it in the disassembly, but it's not like that in the manual.
-	# "Perform an additional operation depending on destination register"
 }
 
-op:"MRR" reg5_10, reg0_5 is reg0_5 & reg5_10 & op10_16=0b000111 & sign_extend_reg5_10_after {
-	reg5_10 = reg0_5;
+op:"MRR" reg5_10, reg0_5 is reg0_5 & reg5_10 & op10_16=0b000111 & sign_extend_reg5_10_after & saturated_reg0_5 {
+	reg5_10 = saturated_reg0_5;
 	build sign_extend_reg5_10_after;
 }
 
@@ -813,8 +873,8 @@ op:"SRSH" Mem8CR, ach8 is Mem8CR & ach8 & op9_16=0b0010100 {
 }
 # 0b0010 101s mmmm mmmm is unused/unknown
 # 0b0010 11ss mmmm mmmm
-op:"SRS" Mem8CR, ac8_10 is Mem8CR & ac8_10 & op10_16=0b001011 {
-	Mem8CR = ac8_10;
+op:"SRS" Mem8CR, ac8_10 is Mem8CR & ac8_10 & op10_16=0b001011 & saturated_ac8_10 {
+	Mem8CR = saturated_ac8_10;
 }
 
 # Define arithmetic opcodes and opcode parameters.
@@ -1250,7 +1310,7 @@ ext_opc0:"NR"           is xar0_2 & xop2_4=3 & xop4_7=0 & xix0_2 {}
 ext_opp0:xar0_2, xix0_2 is xar0_2 & xop2_4=3 & xop4_7=0 & xix0_2 { xar0_2 = xar0_2 + xix0_2; }
 
 ext_opc0:"MV"           is xac0_2 & xax2_4 & xop4_7=1 {}
-ext_opp0:xax2_4, xac0_2 is xac0_2 & xax2_4 & xop4_7=1 { xax2_4 = xac0_2; }
+ext_opp0:xax2_4, xac0_2 is xac0_2 & xax2_4 & xop4_7=1 & saturated_xac0_2 { xax2_4 = saturated_xac0_2; }
 
 ext_opc0:"L"                is xar0_2 & xop2=0 & xac3_6 & xop6=1 {}
 ext_opp0:xac3_6, "@"^xar0_2 is xar0_2 & xop2=0 & xac3_6 & xop6=1 & sign_extend_xac3_6_after { xac3_6 = *:2 xar0_2; xar0_2 = xar0_2 + 1; build sign_extend_xac3_6_after; }
@@ -1262,72 +1322,72 @@ ext_opp0:xac3_6, "@"^xar0_2, xix0_2 is xar0_2 & xix0_2 & xop2=1 & xac3_6 & xop6=
 # 'LN and 'LS have the same encoding in the manual
 # I've assumed 01ddd1ss should instead be 10dd000s, to match the table and other 'LS variants
 ext_opc1:"LS"          is xacm0 & xop1=0 & xop2_4=0 & xax4_6 & xop6=0 {}
-ext_opp1:xax4_6, xacm0 is xacm0 & xop1=0 & xop2_4=0 & xax4_6 & xop6=0 {
+ext_opp1:xax4_6, xacm0 is xacm0 & xop1=0 & xop2_4=0 & xax4_6 & xop6=0 & saturated_xacm0 {
 	xax4_6 = *:2 ar0;
-	*:2 ar3 = xacm0;
+	*:2 ar3 = saturated_xacm0;
 	ar0 = ar0 + 1;
 	ar3 = ar3 + 1;
 }
 
 ext_opc1:"LSN"         is xacm0 & xop1=0 & xop2_4=1 & xax4_6 & xop6=0 {}
-ext_opp1:xax4_6, xacm0 is xacm0 & xop1=0 & xop2_4=1 & xax4_6 & xop6=0 {
+ext_opp1:xax4_6, xacm0 is xacm0 & xop1=0 & xop2_4=1 & xax4_6 & xop6=0 & saturated_xacm0 {
 	xax4_6 = *:2 ar0;
-	*:2 ar3 = xacm0;
+	*:2 ar3 = saturated_xacm0;
 	ar0 = ar0 + ix0;
 	ar3 = ar3 + 1;
 }
 
 ext_opc1:"LSM"         is xacm0 & xop1=0 & xop2_4=2 & xax4_6 & xop6=0 {}
-ext_opp1:xax4_6, xacm0 is xacm0 & xop1=0 & xop2_4=2 & xax4_6 & xop6=0 {
+ext_opp1:xax4_6, xacm0 is xacm0 & xop1=0 & xop2_4=2 & xax4_6 & xop6=0 & saturated_xacm0 {
 	xax4_6 = *:2 ar0;
-	*:2 ar3 = xacm0;
+	*:2 ar3 = saturated_xacm0;
 	ar0 = ar0 + 1;
 	ar3 = ar3 + ix3;
 }
 
 ext_opc1:"LSNM"        is xacm0 & xop1=0 & xop2_4=3 & xax4_6 & xop6=0 {}
-ext_opp1:xax4_6, xacm0 is xacm0 & xop1=0 & xop2_4=3 & xax4_6 & xop6=0 {
+ext_opp1:xax4_6, xacm0 is xacm0 & xop1=0 & xop2_4=3 & xax4_6 & xop6=0 & saturated_xacm0 {
 	xax4_6 = *:2 ar0;
-	*:2 ar3 = xacm0;
+	*:2 ar3 = saturated_xacm0;
 	ar0 = ar0 + ix0;
 	ar3 = ar3 + ix3;
 }
 
 ext_opc0:"S"                is xar0_2 & xop2=0 & xac3_5 & xop5=1 & xop6=0 {}
-ext_opp0:"@"^xar0_2, xac3_5 is xar0_2 & xop2=0 & xac3_5 & xop5=1 & xop6=0 { *:2 xar0_2 = xac3_5; xar0_2 = xar0_2 + 1; }
+ext_opp0:"@"^xar0_2, xac3_5 is xar0_2 & xop2=0 & xac3_5 & xop5=1 & xop6=0 & saturated_xac3_5 { *:2 xar0_2 = saturated_xac3_5; xar0_2 = xar0_2 + 1; }
 
 # xar0_2 and xix0_2 are the same bits in the instruction.  The manual doesn't show xix0_2, but I've included it in the disassembly.
 ext_opc0:"SN"                       is xar0_2 & xop2=1 & xac3_5 & xop5=1 & xop6=0 & xix0_2 {}
-ext_opp0:"@"^xar0_2, xac3_5, xix0_2 is xar0_2 & xop2=1 & xac3_5 & xop5=1 & xop6=0 & xix0_2 { *:2 xar0_2 = xac3_5; xar0_2 = xar0_2 + xix0_2; }
+ext_opp0:"@"^xar0_2, xac3_5, xix0_2 is xar0_2 & xop2=1 & xac3_5 & xop5=1 & xop6=0 & xix0_2 & saturated_xac3_5 { *:2 xar0_2 = saturated_xac3_5; xar0_2 = xar0_2 + xix0_2; }
 
 ext_opc1:"SL"          is xacm0 & xop1=1 & xop2_4=0 & xax4_6 & xop6=0 {}
-ext_opp1:xacm0, xax4_6 is xacm0 & xop1=1 & xop2_4=0 & xax4_6 & xop6=0 {
+ext_opp1:xacm0, xax4_6 is xacm0 & xop1=1 & xop2_4=0 & xax4_6 & xop6=0 & saturated_xacm0 {
 	xax4_6 = *:2 ar0;
-	*:2 ar3 = xacm0;
+	*:2 ar3 = saturated_xacm0;
 	ar0 = ar0 + 1;
 	ar3 = ar3 + 1;
 }
 
 ext_opc1:"SLN"         is xacm0 & xop1=1 & xop2_4=1 & xax4_6 & xop6=0 {}
-ext_opp1:xacm0, xax4_6 is xacm0 & xop1=1 & xop2_4=1 & xax4_6 & xop6=0 {
+ext_opp1:xacm0, xax4_6 is xacm0 & xop1=1 & xop2_4=1 & xax4_6 & xop6=0 & saturated_xacm0 {
 	xax4_6 = *:2 ar0;
-	*:2 ar3 = xacm0;
+	*:2 ar3 = saturated_xacm0;
 	ar0 = ar0 + ix0;
 	ar3 = ar3 + 1;
 }
 
 ext_opc1:"SLM"         is xacm0 & xop1=1 & xop2_4=2 & xax4_6 & xop6=0 {}
-ext_opp1:xacm0, xax4_6 is xacm0 & xop1=1 & xop2_4=2 & xax4_6 & xop6=0 {
+ext_opp1:xacm0, xax4_6 is xacm0 & xop1=1 & xop2_4=2 & xax4_6 & xop6=0 & saturated_xacm0 {
 	xax4_6 = *:2 ar0;
-	*:2 ar3 = xacm0;
+	*:2 ar3 = saturated_xacm0;
 	ar0 = ar0 + 1;
 	ar3 = ar3 + ix3;
 }
 
 ext_opc1:"SLNM"        is xacm0 & xop1=1 & xop2_4=3 & xax4_6 & xop6=0 {}
-ext_opp1:xacm0, xax4_6 is xacm0 & xop1=1 & xop2_4=3 & xax4_6 & xop6=0 {
+ext_opp1:xacm0, xax4_6 is xacm0 & xop1=1 & xop2_4=3 & xax4_6 & xop6=0 & saturated_xacm0 {
 	xax4_6 = *:2 ar0;
-	*:2 ar3 = xacm0;
+	*:2 ar3 = saturated_xacm0;
 	ar0 = ar0 + ix0;
 	ar3 = ar3 + ix3;
 }
