@@ -40,9 +40,11 @@ define register offset=0x28 size=2 [ prod.l prod.m1 prod.h prod.m2 ]; # Product
 
 # Fake versions of the accumulator registers to make emulating them reasonable
 define register offset=0x80 size=2 [ ac0.h ac0.m ac0.l ];
+define register offset=0x81 size=1 [ ac0.hreal ];
 define register offset=0x81 size=5 [ ac0 ];
 define register offset=0x81 size=3 [ acs0 ]; # Short/mid accumulator, 24 bits
 define register offset=0x90 size=2 [ ac1.h ac1.m ac1.l ];
+define register offset=0x91 size=1 [ ac1.hreal ];
 define register offset=0x91 size=5 [ ac1 ];
 define register offset=0x91 size=3 [ acs1 ]; # Short/mid accumulator, 24 bits
 define register offset=0xA0 size=2 [ ax0.h ax0.l ];
@@ -138,7 +140,8 @@ define token opbyte (16)
 	acs8 = (8, 8)
 	ac8_11 = (8, 10)
 	ac8_10 = (8, 9)
-	ach8 =   (8, 8)
+	ach8display = (8, 8)
+	ach8 = (8, 8)
 
 	srbit = (0, 2)
 	imm6 = (0, 5)
@@ -262,14 +265,20 @@ macro GET_SATURATED_AC1M(dest) {
 }
 
 sign_extend_reg0_5_after: is reg0_5 {}
+sign_extend_reg0_5_after: is reg0_5=0x10 { ac0.h = sext(ac0.hreal); }
+sign_extend_reg0_5_after: is reg0_5=0x11 { ac1.h = sext(ac1.hreal); }
 sign_extend_reg0_5_after: is reg0_5=0x1E { SIGN_EXTEND_AC0M(); }
 sign_extend_reg0_5_after: is reg0_5=0x1F { SIGN_EXTEND_AC1M(); }
 
 saturated_reg0_5: is reg0_5 { export reg0_5; }
+saturated_reg0_5: is reg0_5=0x10 { local tmp:2 = sext(ac0.hreal); export tmp; }
+saturated_reg0_5: is reg0_5=0x11 { local tmp:2 = sext(ac1.hreal); export tmp; }
 saturated_reg0_5: is reg0_5=0x1E { local tmp:2; GET_SATURATED_AC0M(tmp); export tmp; }
 saturated_reg0_5: is reg0_5=0x1F { local tmp:2; GET_SATURATED_AC1M(tmp); export tmp; }
 
 sign_extend_reg5_10_after: is reg5_10 {}
+sign_extend_reg5_10_after: is reg5_10=0x10 { ac0.h = sext(ac0.hreal); }
+sign_extend_reg5_10_after: is reg5_10=0x11 { ac1.h = sext(ac1.hreal); }
 sign_extend_reg5_10_after: is reg5_10=0x1E { SIGN_EXTEND_AC0M(); }
 sign_extend_reg5_10_after: is reg5_10=0x1F { SIGN_EXTEND_AC1M(); }
 
@@ -283,7 +292,8 @@ attach variables [ acf8 ] [ ac0 ac1 ]; # Full 40-bit accumulators
 attach variables [ acs8 ] [ acs0 acs1 ]; # 24 bits of 40-bit accumulators
 attach variables [ ac8_11 ] [ ax0.l ax1.l ax0.h ax1.h ac0.l ac1.l ac0.m ac1.m ]; # 3-bit field referring to a register starting at 0x18 (ax0.l)
 attach variables [ ac8_10 ] [ ac0.l ac1.l ac0.m ac1.m ]; # 2-bit field referring to a register starting at 0x1C (ac0.l)
-attach variables [ ach8 ] [ ac0.h ac1.h ]; # Top of 40-bit accumulators
+attach variables [ ach8display ] [ ac0.h ac1.h ]; # Top of 40-bit accumulators
+attach variables [ ach8 ] [ ac0.hreal ac1.hreal ]; # Top of 40-bit accumulators, as 8-bit registers
 
 sign_extend_acm8_after: is acm8=0 { SIGN_EXTEND_AC0M(); }
 sign_extend_acm8_after: is acm8=1 { SIGN_EXTEND_AC1M(); }
@@ -868,8 +878,8 @@ op:"LRS" ac8_11, Mem8CR is Mem8CR & ac8_11 & op11_16=0b00100 & sign_extend_ac8_1
 	build sign_extend_ac8_11_after;
 }
 # 0b0010 100s mmmm mmmm
-op:"SRSH" Mem8CR, ach8 is Mem8CR & ach8 & op9_16=0b0010100 {
-	Mem8CR = ach8;
+op:"SRSH" Mem8CR, ach8display is Mem8CR & ach8display & op9_16=0b0010100 & ach8 {
+	Mem8CR = sext(ach8);
 }
 # 0b0010 101s mmmm mmmm is unused/unknown
 # 0b0010 11ss mmmm mmmm
