@@ -283,7 +283,7 @@ sign_extend_reg5_10_after: is reg5_10=0x1E { SIGN_EXTEND_AC0M(); }
 sign_extend_reg5_10_after: is reg5_10=0x1F { SIGN_EXTEND_AC1M(); }
 
 attach variables [ ar0_2 ar5_7 ] [ ar0 ar1 ar2 ar3 ];
-attach variables [ ix2_4 ix5_7 ] [ ix0 ix1 ix2 ix3 ];
+attach variables [ ix0_2 ix2_4 ix5_7 ] [ ix0 ix1 ix2 ix3 ];
 
 attach variables [ reg5_8 ] [ ar0 ar1 ar2 ar3 ix0 ix1 ix2 ix3 ];
 
@@ -502,7 +502,7 @@ op:"IAR" ar0_2 is ar0_2 & op2_4=0b10 & op4_8=0 & op8_16=0 {
 	ar0_2 = ar0_2 - 1;
 }
 
-op:"SUBARN" ar0_2, ix0_2 is ar0_2 & op2_4=0b11 & op4_8=0b0001 & op8_16=0 & ix0_2 {
+op:"SUBARN" ar0_2, ix0_2 is ar0_2 & op2_4=0b11 & op4_8=0b0000 & op8_16=0 & ix0_2 {
 	ar0_2 = ar0_2 - ix0_2;
 }
 
