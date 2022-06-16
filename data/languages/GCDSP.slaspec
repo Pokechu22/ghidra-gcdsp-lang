@@ -41,11 +41,11 @@ define register offset=0x28 size=2 [ prod.l prod.m1 prod.h prod.m2 ]; # Product
 # Fake versions of the accumulator registers to make emulating them reasonable
 define register offset=0x80 size=2 [ ac0.h ac0.m ac0.l ];
 define register offset=0x81 size=1 [ ac0.hreal ];
-define register offset=0x81 size=5 [ ac0 ];
+define register offset=0x81 size=5 [ acc0 ];
 define register offset=0x81 size=3 [ acs0 ]; # Short/mid accumulator, 24 bits
 define register offset=0x90 size=2 [ ac1.h ac1.m ac1.l ];
 define register offset=0x91 size=1 [ ac1.hreal ];
-define register offset=0x91 size=5 [ ac1 ];
+define register offset=0x91 size=5 [ acc1 ];
 define register offset=0x91 size=3 [ acs1 ]; # Short/mid accumulator, 24 bits
 define register offset=0xA0 size=2 [ ax0.h ax0.l ];
 define register offset=0xA0 size=4 [ ax0 ];
@@ -201,7 +201,7 @@ macro SIGN_EXTEND_AC0M() {
 @ifndef ALWAYS_USE_40_BIT_SIGN_EXTENSION
 	if (!$(SR_40_MODE)) goto <done>;
 @endif
-	ac0 = sext(ac0.m) << 16;
+	acc0 = sext(ac0.m) << 16;
 @ifndef ALWAYS_USE_40_BIT_SIGN_EXTENSION
 	<done>
 @endif
@@ -212,7 +212,7 @@ macro SIGN_EXTEND_AC1M() {
 @ifndef ALWAYS_USE_40_BIT_SIGN_EXTENSION
 	if (!$(SR_40_MODE)) goto <done>;
 @endif
-	ac1 = sext(ac1.m) << 16;
+	acc1 = sext(ac1.m) << 16;
 @ifndef ALWAYS_USE_40_BIT_SIGN_EXTENSION
 	<done>
 @endif
@@ -228,9 +228,9 @@ macro GET_SATURATED_AC0M(dest) {
 	# If the 40-bit mode is disabled, no saturation is needed.
 	if (!$(SR_40_MODE)) goto <no_saturation_needed>;
 	# If the accumulator is the same as its s32 version, no saturation is needed.
-	if (ac0 == sext(ac0:4)) goto <no_saturation_needed>;
+	if (acc0 == sext(ac0:4)) goto <no_saturation_needed>;
 	# Saturation is needed; check if it needs to be be positive or negative.
-	if (ac0 s< 0) goto <negative_saturation>;
+	if (acc0 s< 0) goto <negative_saturation>;
 	# Positive
 	dest = 0x7fff;
 	goto <done>;
@@ -248,9 +248,9 @@ macro GET_SATURATED_AC1M(dest) {
 	# If the 40-bit mode is disabled, no saturation is needed.
 	if (!$(SR_40_MODE)) goto <no_saturation_needed>;
 	# If the accumulator is the same as its s32 version, no saturation is needed.
-	if (ac1 == sext(ac1:4)) goto <no_saturation_needed>;
+	if (acc1 == sext(ac1:4)) goto <no_saturation_needed>;
 	# Saturation is needed; check if it needs to be be positive or negative.
-	if (ac1 s< 0) goto <negative_saturation>;
+	if (acc1 s< 0) goto <negative_saturation>;
 	# Positive
 	dest = 0x7fff;
 	goto <done>;
@@ -288,7 +288,7 @@ attach variables [ ix0_2 ix2_4 ix5_7 ] [ ix0 ix1 ix2 ix3 ];
 attach variables [ reg5_8 ] [ ar0 ar1 ar2 ar3 ix0 ix1 ix2 ix3 ];
 
 attach variables [ acm8 ] [ ac0.m ac1.m ]; # Middle of 40-bit accumulators
-attach variables [ acf8 ] [ ac0 ac1 ]; # Full 40-bit accumulators
+attach variables [ acf8 ] [ acc0 acc1 ]; # Full 40-bit accumulators
 attach variables [ acs8 ] [ acs0 acs1 ]; # 24 bits of 40-bit accumulators
 attach variables [ ac8_11 ] [ ax0.l ax1.l ax0.h ax1.h ac0.l ac1.l ac0.m ac1.m ]; # 3-bit field referring to a register starting at 0x18 (ax0.l)
 attach variables [ ac8_10 ] [ ac0.l ac1.l ac0.m ac1.m ]; # 2-bit field referring to a register starting at 0x1C (ac0.l)
@@ -315,8 +315,8 @@ attach variables srbit [ SR_LOGIC_ZERO_ SR_OVERFLOW_STICKY_ SR_100_ SR_INT_ENABL
 
 # GCDSP also supports extension instructions, where a 1-byte arithmetic
 # instruction is followed by a 1-byte extension instruction.
-# This is written as e.g. 46 51 ADDR'L ac0, ax1.h : ax0.h, @ar1 where
-# 46 corresponds to ADDR ac0, ax1.h and 51 corresponds to 'L ax0.h, @ar1.
+# This is written as e.g. 46 51 ADDR'L acc0, ax1.h : ax0.h, @ar1 where
+# 46 corresponds to ADDR acc0, ax1.h and 51 corresponds to 'L ax0.h, @ar1.
 # SLEIGH lets us have two separate tokens which can form two tables that
 # are merged later, which could be used for implementing this.
 #
@@ -401,8 +401,8 @@ define token axopbyte (16)
 attach variables [ aacl0 ] [ ac0.l ac1.l ];
 attach variables [ aacm0 aacm1 aacm4 ] [ ac0.m ac1.m ];
 attach variables [ aacm0_other ] [ ac1.m ac0.m ];
-attach variables [ aacf0 aacf3 ] [ ac0 ac1 ];
-attach variables [ aacf0_other ] [ ac1 ac0 ];
+attach variables [ aacf0 aacf3 ] [ acc0 acc1 ];
+attach variables [ aacf0_other ] [ acc1 acc0 ];
 attach variables [ aacs0 ] [ acs0 acs1 ];
 attach variables [ aaxh0 aaxh1 aaxh3 aaxh4 ] [ ax0.h ax1.h ];
 attach variables [ aaxl0 aaxl1 aaxl3 ] [ ax0.l ax1.l ];
@@ -732,8 +732,8 @@ op:"LSL" acf8, Imm6 is Imm6 & op6_8=0b00 & acf8 & op9_16=0b0001010 {
 	FLAGS40(acf8);
 }
 # To handle right shifts correctly, we subtract 64 and then negate.
-# Dolphin decodes (well, used to; there's a regression with fmt currently) 1479 as "lsr $ACC0, #-7" which we change to "LSR ac0, #7".
-# Without manual handling, you get "LSR ac0,#0x39" instead.
+# Dolphin decodes (well, used to; there's a regression with fmt currently) 1479 as "lsr $ACC0, #-7" which we change to "LSR acc0, #7".
+# Without manual handling, you get "LSR acc0,#0x39" instead.
 # Note that if the immediate value is 0, then a shift of 0 still occurs.  Imm6Right handles this.
 op:"LSR" acf8, Imm6Right is Imm6Right & op6_8=0b01 & acf8 & op9_16=0b0001010  {
 	acf8 = acf8 >> Imm6Right;
@@ -801,12 +801,12 @@ macro TwoWayArithmeticShift(value, shift) {
 @endif
 
 # TODO: Not documented.  Dolphin's DSPTables.cpp mentions "these two were discovered by ector".
-# These two operate directly on ac0 and ac1.m.
+# These two operate directly on acc0 and ac1.m.
 op:"LSRN" is op0_4=0b1010 & op4_8=0b1100 & op8_16=2 {
-	TwoWayLogicalShift(ac0, ac1.m);
+	TwoWayLogicalShift(acc0, ac1.m);
 }
 op:"ASRN" is op0_4=0b1011 & op4_8=0b1100 & op8_16=2 {
-	TwoWayArithmeticShift(ac0, ac1.m);
+	TwoWayArithmeticShift(acc0, ac1.m);
 }
 
 op:"SI" Mem8FF, Imm16 is Mem8FF & op8_16=0b00010110; Imm16 {
@@ -1086,7 +1086,7 @@ a_opp:aacf3 is aop0_3=1 & aacf3 & aop4_8=0b1000 {
 
 a_opc:"CMP" is aop0_3=0b010 & aop3=0 & aop4_8=0b1000 {}
 a_opp:""    is aop0_3=0b010 & aop3=0 & aop4_8=0b1000 {
-	FLAGS_SUB40(ac0, ac1);
+	FLAGS_SUB40(acc0, acc1);
 }
 
 a_opc:"MULAXH" is aop0_3=0b011 & aop3=0 & aop4_8=0b1000 {}
