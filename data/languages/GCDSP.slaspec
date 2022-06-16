@@ -119,29 +119,29 @@ define token opbyte (16)
 	op0_5 = (0, 4)
 	op5   = (4, 4)
 
-	ar0_2 = (0, 1)
-	ix0_2 = (0, 1)
+	_ar0_2 = (0, 1)
+	_ix0_2 = (0, 1)
 
-	ix2_4 = (2, 3)
+	_ix2_4 = (2, 3)
 	op2_4 = (2, 3)
 
-	reg0_5 = (0, 4)
+	_reg0_5 = (0, 4)
 
-	ar5_7 = (5, 6)
-	ix5_7 = (5, 6)
+	_ar5_7 = (5, 6)
+	_ix5_7 = (5, 6)
 
-	reg5_8 = (5, 7)
-	reg5_10 = (5, 9)
+	_reg5_8 = (5, 7)
+	_reg5_10 = (5, 9)
 
 	cc0_4 = (0, 3)
 
-	acm8 = (8, 8)
-	acf8 = (8, 8)
-	acs8 = (8, 8)
-	ac8_11 = (8, 10)
-	ac8_10 = (8, 9)
-	ach8display = (8, 8)
-	ach8 = (8, 8)
+	_acm8 = (8, 8)
+	_acf8 = (8, 8)
+	_acs8 = (8, 8)
+	_ac8_11 = (8, 10)
+	_ac8_10 = (8, 9)
+	_ach8display = (8, 8)
+	_ach8 = (8, 8)
 
 	srbit = (0, 2)
 	imm6 = (0, 5)
@@ -184,7 +184,7 @@ Imm16: "#"^imm16 is imm16 { export *[const]:2 imm16; }
 SImm16: "#"^simm16 is simm16 { export *[const]:2 simm16; }
 Mem16: "@"^imm16 is imm16 { export *:2 imm16; }
 
-attach variables [ reg0_5 reg5_10 ] [
+attach variables [ _reg0_5 _reg5_10 ] [
 	ar0 ar1 ar2 ar3
 	ix0 ix1 ix2 ix3
 	wr0 wr1 wr2 wr3
@@ -264,47 +264,47 @@ macro GET_SATURATED_AC1M(dest) {
 	<done>
 }
 
-sign_extend_reg0_5_after: is reg0_5 {}
-sign_extend_reg0_5_after: is reg0_5=0x10 { ac0.h = sext(ac0.hreal); }
-sign_extend_reg0_5_after: is reg0_5=0x11 { ac1.h = sext(ac1.hreal); }
-sign_extend_reg0_5_after: is reg0_5=0x1E { SIGN_EXTEND_AC0M(); }
-sign_extend_reg0_5_after: is reg0_5=0x1F { SIGN_EXTEND_AC1M(); }
+sign_extend_reg0_5_after: is _reg0_5 {}
+sign_extend_reg0_5_after: is _reg0_5=0x10 { ac0.h = sext(ac0.hreal); }
+sign_extend_reg0_5_after: is _reg0_5=0x11 { ac1.h = sext(ac1.hreal); }
+sign_extend_reg0_5_after: is _reg0_5=0x1E { SIGN_EXTEND_AC0M(); }
+sign_extend_reg0_5_after: is _reg0_5=0x1F { SIGN_EXTEND_AC1M(); }
 
-saturated_reg0_5: is reg0_5 { export reg0_5; }
-saturated_reg0_5: is reg0_5=0x10 { local tmp:2 = sext(ac0.hreal); export tmp; }
-saturated_reg0_5: is reg0_5=0x11 { local tmp:2 = sext(ac1.hreal); export tmp; }
-saturated_reg0_5: is reg0_5=0x1E { local tmp:2; GET_SATURATED_AC0M(tmp); export tmp; }
-saturated_reg0_5: is reg0_5=0x1F { local tmp:2; GET_SATURATED_AC1M(tmp); export tmp; }
+saturated_reg0_5: is _reg0_5 { export _reg0_5; }
+saturated_reg0_5: is _reg0_5=0x10 { local tmp:2 = sext(ac0.hreal); export tmp; }
+saturated_reg0_5: is _reg0_5=0x11 { local tmp:2 = sext(ac1.hreal); export tmp; }
+saturated_reg0_5: is _reg0_5=0x1E { local tmp:2; GET_SATURATED_AC0M(tmp); export tmp; }
+saturated_reg0_5: is _reg0_5=0x1F { local tmp:2; GET_SATURATED_AC1M(tmp); export tmp; }
 
-sign_extend_reg5_10_after: is reg5_10 {}
-sign_extend_reg5_10_after: is reg5_10=0x10 { ac0.h = sext(ac0.hreal); }
-sign_extend_reg5_10_after: is reg5_10=0x11 { ac1.h = sext(ac1.hreal); }
-sign_extend_reg5_10_after: is reg5_10=0x1E { SIGN_EXTEND_AC0M(); }
-sign_extend_reg5_10_after: is reg5_10=0x1F { SIGN_EXTEND_AC1M(); }
+sign_extend_reg5_10_after: is _reg5_10 {}
+sign_extend_reg5_10_after: is _reg5_10=0x10 { ac0.h = sext(ac0.hreal); }
+sign_extend_reg5_10_after: is _reg5_10=0x11 { ac1.h = sext(ac1.hreal); }
+sign_extend_reg5_10_after: is _reg5_10=0x1E { SIGN_EXTEND_AC0M(); }
+sign_extend_reg5_10_after: is _reg5_10=0x1F { SIGN_EXTEND_AC1M(); }
 
-attach variables [ ar0_2 ar5_7 ] [ ar0 ar1 ar2 ar3 ];
-attach variables [ ix0_2 ix2_4 ix5_7 ] [ ix0 ix1 ix2 ix3 ];
+attach variables [ _ar0_2 _ar5_7 ] [ ar0 ar1 ar2 ar3 ];
+attach variables [ _ix0_2 _ix2_4 _ix5_7 ] [ ix0 ix1 ix2 ix3 ];
 
-attach variables [ reg5_8 ] [ ar0 ar1 ar2 ar3 ix0 ix1 ix2 ix3 ];
+attach variables [ _reg5_8 ] [ ar0 ar1 ar2 ar3 ix0 ix1 ix2 ix3 ];
 
-attach variables [ acm8 ] [ ac0.m ac1.m ]; # Middle of 40-bit accumulators
-attach variables [ acf8 ] [ acc0 acc1 ]; # Full 40-bit accumulators
-attach variables [ acs8 ] [ acs0 acs1 ]; # 24 bits of 40-bit accumulators
-attach variables [ ac8_11 ] [ ax0.l ax1.l ax0.h ax1.h ac0.l ac1.l ac0.m ac1.m ]; # 3-bit field referring to a register starting at 0x18 (ax0.l)
-attach variables [ ac8_10 ] [ ac0.l ac1.l ac0.m ac1.m ]; # 2-bit field referring to a register starting at 0x1C (ac0.l)
-attach variables [ ach8display ] [ ac0.h ac1.h ]; # Top of 40-bit accumulators
-attach variables [ ach8 ] [ ac0.hreal ac1.hreal ]; # Top of 40-bit accumulators, as 8-bit registers
+attach variables [ _acm8 ] [ ac0.m ac1.m ]; # Middle of 40-bit accumulators
+attach variables [ _acf8 ] [ acc0 acc1 ]; # Full 40-bit accumulators
+attach variables [ _acs8 ] [ acs0 acs1 ]; # 24 bits of 40-bit accumulators
+attach variables [ _ac8_11 ] [ ax0.l ax1.l ax0.h ax1.h ac0.l ac1.l ac0.m ac1.m ]; # 3-bit field referring to a register starting at 0x18 (ax0.l)
+attach variables [ _ac8_10 ] [ ac0.l ac1.l ac0.m ac1.m ]; # 2-bit field referring to a register starting at 0x1C (ac0.l)
+attach variables [ _ach8display ] [ ac0.h ac1.h ]; # Top of 40-bit accumulators
+attach variables [ _ach8 ] [ ac0.hreal ac1.hreal ]; # Top of 40-bit accumulators, as 8-bit registers
 
-sign_extend_acm8_after: is acm8=0 { SIGN_EXTEND_AC0M(); }
-sign_extend_acm8_after: is acm8=1 { SIGN_EXTEND_AC1M(); }
+sign_extend_acm8_after: is _acm8=0 { SIGN_EXTEND_AC0M(); }
+sign_extend_acm8_after: is _acm8=1 { SIGN_EXTEND_AC1M(); }
 
-sign_extend_ac8_11_after: is ac8_11 {}
-sign_extend_ac8_11_after: is ac8_11=6 { SIGN_EXTEND_AC0M(); }
-sign_extend_ac8_11_after: is ac8_11=7 { SIGN_EXTEND_AC1M(); }
+sign_extend_ac8_11_after: is _ac8_11 {}
+sign_extend_ac8_11_after: is _ac8_11=6 { SIGN_EXTEND_AC0M(); }
+sign_extend_ac8_11_after: is _ac8_11=7 { SIGN_EXTEND_AC1M(); }
 
-saturated_ac8_10: is ac8_10 { export ac8_10; }
-saturated_ac8_10: is ac8_10=2 { local tmp:2; GET_SATURATED_AC0M(tmp); export tmp; }
-saturated_ac8_10: is ac8_10=3 { local tmp:2; GET_SATURATED_AC1M(tmp); export tmp; }
+saturated_ac8_10: is _ac8_10 { export _ac8_10; }
+saturated_ac8_10: is _ac8_10=2 { local tmp:2; GET_SATURATED_AC0M(tmp); export tmp; }
+saturated_ac8_10: is _ac8_10=3 { local tmp:2; GET_SATURATED_AC1M(tmp); export tmp; }
 
 @ifdef USE_REAL_SR_REGISTER
 # Offset by 6
@@ -336,33 +336,33 @@ define token axopbyte (16)
 	aop1_4 = (9,  11) # (1, 3)
 	aop1_3 = (9,  10) # (1, 2)
 
-	aacl0 = (8, 8) # (0, 0) # Low part of 40-bit accumulator
+	_aacl0 = (8, 8) # (0, 0) # Low part of 40-bit accumulator
 
-	aacm0 = (8, 8) # (0, 0) # Middle of 40-bit accumulator
-	aacm1 = (9, 9) # (1, 1) # Middle of 40-bit accumulator
-	aacm0_other = (8, 8) # (0, 0) # Middle of 40-bit accumulator, backwards
-	aacm4 = (12, 12) # (4, 4) # Middle of 40-bit accumulator
+	_aacm0 = (8, 8) # (0, 0) # Middle of 40-bit accumulator
+	_aacm1 = (9, 9) # (1, 1) # Middle of 40-bit accumulator
+	_aacm0_other = (8, 8) # (0, 0) # Middle of 40-bit accumulator, backwards
+	_aacm4 = (12, 12) # (4, 4) # Middle of 40-bit accumulator
 
-	aacf0 = (8, 8) # (0, 0) # Full 40 bits of an accumulator
-	aacf0_other = (8, 8) # (0, 0) # Full 40 bits of an accumulator, backwards
-	aacf3 = (11, 11) # (3, 3) # Full 40 bits of an accumulator
+	_aacf0 = (8, 8) # (0, 0) # Full 40 bits of an accumulator
+	_aacf0_other = (8, 8) # (0, 0) # Full 40 bits of an accumulator, backwards
+	_aacf3 = (11, 11) # (3, 3) # Full 40 bits of an accumulator
 
-	aacs0 = (8, 8) # (0, 0) # 24 bits of a 40-bit accumulator
+	_aacs0 = (8, 8) # (0, 0) # 24 bits of a 40-bit accumulator
 
-	aaxh0 = (8,  8)  # (0, 0) # High bits of 32-bit accumulator
-	aaxh1 = (9,  9)  # (1, 1) # High bits of 32-bit accumulator
-	aaxh3 = (11, 11) # (3, 3) # High bits of 32-bit accumulator
-	aaxh4 = (12, 12) # (4, 4) # High bits of 32-bit accumulator
-	aaxl0 = (8,  8)  # Low bits of 32-bit accumulator
-	aaxl1 = (9,  9)  # Low bits of 32-bit accumulator
-	aaxl3 = (11, 11) # Low bits of 32-bit accumulator
-	aaxf1 = (9,  9)  # Full 32 bits of an accumulator
-	aax1_2 = (9, 10) # (1, 2) # 32-bit accumulator
+	_aaxh0 = (8,  8)  # (0, 0) # High bits of 32-bit accumulator
+	_aaxh1 = (9,  9)  # (1, 1) # High bits of 32-bit accumulator
+	_aaxh3 = (11, 11) # (3, 3) # High bits of 32-bit accumulator
+	_aaxh4 = (12, 12) # (4, 4) # High bits of 32-bit accumulator
+	_aaxl0 = (8,  8)  # Low bits of 32-bit accumulator
+	_aaxl1 = (9,  9)  # Low bits of 32-bit accumulator
+	_aaxl3 = (11, 11) # Low bits of 32-bit accumulator
+	_aaxf1 = (9,  9)  # Full 32 bits of an accumulator
+	_aax1_2 = (9, 10) # (1, 2) # 32-bit accumulator
 
-	aax0lh1 = (9,  9)  # (1, 1) # Either ax0.l or ax0.h
-	aax0lh4 = (12, 12) # (4, 4) # Either ax0.l or ax0.h
-	aax1lh0 = (8,  8)  # (0, 0) # Either ax1.l or ax1.h
-	aax1lh3 = (11, 11) # (3, 3) # Either ax1.l or ax1.h
+	_aax0lh1 = (9,  9)  # (1, 1) # Either ax0.l or ax0.h
+	_aax0lh4 = (12, 12) # (4, 4) # Either ax0.l or ax0.h
+	_aax1lh0 = (8,  8)  # (0, 0) # Either ax1.l or ax1.h
+	_aax1lh3 = (11, 11) # (3, 3) # Either ax1.l or ax1.h
 
 	# Bit that belongs in xop but is used by arithmetic ops where aop4_8=0b0011
 	axbit = (7, 7)
@@ -377,73 +377,128 @@ define token axopbyte (16)
 	xop6   = (6, 6)
 	xop2_4 = (2, 3)
 
-	xar0_2 = (0, 1) # Addressing register
-	xix0_2 = (0, 1) # Index register
-	xac3_6 = (3, 5) # Either accumulator
-	xax2_4 = (2, 3) # 32-bit accumulator
-	xax4_6 = (4, 5) # 32-bit accumulator
-	xac0_2 = (0, 1) # 40-bit accumulator
-	xac3_5 = (3, 4) # 40-bit accumulator
-	xacm0  = (0, 0) # Either ac0.m or ac1.m
+	_xar0_2 = (0, 1) # Addressing register
+	_xix0_2 = (0, 1) # Index register
+	_xac3_6 = (3, 5) # Either accumulator
+	_xax2_4 = (2, 3) # 32-bit accumulator
+	_xax4_6 = (4, 5) # 32-bit accumulator
+	_xac0_2 = (0, 1) # 40-bit accumulator
+	_xac3_5 = (3, 4) # 40-bit accumulator
+	_xacm0  = (0, 0) # Either ac0.m or ac1.m
 
-	xax0lh5 = (5, 5) # Either ax0.l or ax0.h
-	xax1lh4 = (4, 4) # Either ax1.l or ax1.h
+	_xax0lh5 = (5, 5) # Either ax0.l or ax0.h
+	_xax1lh4 = (4, 4) # Either ax1.l or ax1.h
 
-	xax4  = (4, 4) # Either ax0 or ax1
-	xaxl4 = (4, 4) # Either ax0.l or ax1.l
-	xaxh4 = (4, 4) # Either ax0.h or ax1.h
+	_xax4  = (4, 4) # Either ax0 or ax1
+	_xaxl4 = (4, 4) # Either ax0.l or ax1.l
+	_xaxh4 = (4, 4) # Either ax0.h or ax1.h
 
-	xar5 = (5, 5) # Either ar0 or ar1; ar2 and ar3 are not selectable
-	xix5 = (5, 5) # Either ix0 or ix1
+	_xar5 = (5, 5) # Either ar0 or ar1; ar2 and ar3 are not selectable
+	_xix5 = (5, 5) # Either ix0 or ix1
 ;
 
 # Variables for arithmetic opcodes
-attach variables [ aacl0 ] [ ac0.l ac1.l ];
-attach variables [ aacm0 aacm1 aacm4 ] [ ac0.m ac1.m ];
-attach variables [ aacm0_other ] [ ac1.m ac0.m ];
-attach variables [ aacf0 aacf3 ] [ acc0 acc1 ];
-attach variables [ aacf0_other ] [ acc1 acc0 ];
-attach variables [ aacs0 ] [ acs0 acs1 ];
-attach variables [ aaxh0 aaxh1 aaxh3 aaxh4 ] [ ax0.h ax1.h ];
-attach variables [ aaxl0 aaxl1 aaxl3 ] [ ax0.l ax1.l ];
-attach variables [ aax1_2 ] [ ax0.l ax1.l ax0.h ax1.h ]; # 2-bit field referring to a register starting at 0x18 (ax0.l)
-attach variables [ aaxf1 ] [ ax0 ax1 ];
+attach variables [ _aacl0 ] [ ac0.l ac1.l ];
+attach variables [ _aacm0 _aacm1 _aacm4 ] [ ac0.m ac1.m ];
+attach variables [ _aacm0_other ] [ ac1.m ac0.m ];
+attach variables [ _aacf0 _aacf3 ] [ acc0 acc1 ];
+attach variables [ _aacf0_other ] [ acc1 acc0 ];
+attach variables [ _aacs0 ] [ acs0 acs1 ];
+attach variables [ _aaxh0 _aaxh1 _aaxh3 _aaxh4 ] [ ax0.h ax1.h ];
+attach variables [ _aaxl0 _aaxl1 _aaxl3 ] [ ax0.l ax1.l ];
+attach variables [ _aax1_2 ] [ ax0.l ax1.l ax0.h ax1.h ]; # 2-bit field referring to a register starting at 0x18 (ax0.l)
+attach variables [ _aaxf1 ] [ ax0 ax1 ];
 
-attach variables [ aax0lh1 aax0lh4 ] [ ax0.l ax0.h ];
-attach variables [ aax1lh0 aax1lh3 ] [ ax1.l ax1.h ];
+attach variables [ _aax0lh1 _aax0lh4 ] [ ax0.l ax0.h ];
+attach variables [ _aax1lh0 _aax1lh3 ] [ ax1.l ax1.h ];
 
 # Variables for extension opcodes
-attach variables [ xar0_2 ] [ ar0 ar1 ar2 ar3 ];
-attach variables [ xix0_2 ] [ ix0 ix1 ix2 ix3 ];
-attach variables [ xac3_6 ] [ ax0.l ax1.l ax0.h ax1.h ac0.l ac1.l ac0.m ac1.m ]; # 3-bit field referring to a register starting at 0x18 (ax0.l)
-attach variables [ xax2_4 xax4_6 ] [ ax0.l ax1.l ax0.h ax1.h ]; # 2-bit field referring to a register starting at 0x18 (ax0.l)
-attach variables [ xac0_2 xac3_5 ] [ ac0.l ac1.l ac0.m ac1.m ]; # 2-bit field referring to a register starting at 0x1C (ac0.l)
-attach variables [ xacm0 ] [ ac0.m ac1.m ];
+attach variables [ _xar0_2 ] [ ar0 ar1 ar2 ar3 ];
+attach variables [ _xix0_2 ] [ ix0 ix1 ix2 ix3 ];
+attach variables [ _xac3_6 ] [ ax0.l ax1.l ax0.h ax1.h ac0.l ac1.l ac0.m ac1.m ]; # 3-bit field referring to a register starting at 0x18 (ax0.l)
+attach variables [ _xax2_4 _xax4_6 ] [ ax0.l ax1.l ax0.h ax1.h ]; # 2-bit field referring to a register starting at 0x18 (ax0.l)
+attach variables [ _xac0_2 _xac3_5 ] [ ac0.l ac1.l ac0.m ac1.m ]; # 2-bit field referring to a register starting at 0x1C (ac0.l)
+attach variables [ _xacm0 ] [ ac0.m ac1.m ];
 
-sign_extend_xac3_6_after: is xac3_6 {}
-sign_extend_xac3_6_after: is xac3_6=6 { SIGN_EXTEND_AC0M(); }
-sign_extend_xac3_6_after: is xac3_6=7 { SIGN_EXTEND_AC1M(); }
+sign_extend_xac3_6_after: is _xac3_6 {}
+sign_extend_xac3_6_after: is _xac3_6=6 { SIGN_EXTEND_AC0M(); }
+sign_extend_xac3_6_after: is _xac3_6=7 { SIGN_EXTEND_AC1M(); }
 
-saturated_xac0_2: is xac0_2 { export xac0_2; }
-saturated_xac0_2: is xac0_2=2 { local tmp:2; GET_SATURATED_AC0M(tmp); export tmp; }
-saturated_xac0_2: is xac0_2=3 { local tmp:2; GET_SATURATED_AC1M(tmp); export tmp; }
+saturated_xac0_2: is _xac0_2 { export _xac0_2; }
+saturated_xac0_2: is _xac0_2=2 { local tmp:2; GET_SATURATED_AC0M(tmp); export tmp; }
+saturated_xac0_2: is _xac0_2=3 { local tmp:2; GET_SATURATED_AC1M(tmp); export tmp; }
 
-saturated_xac3_5: is xac3_5 { export xac3_5; }
-saturated_xac3_5: is xac3_5=2 { local tmp:2; GET_SATURATED_AC0M(tmp); export tmp; }
-saturated_xac3_5: is xac3_5=3 { local tmp:2; GET_SATURATED_AC1M(tmp); export tmp; }
+saturated_xac3_5: is _xac3_5 { export _xac3_5; }
+saturated_xac3_5: is _xac3_5=2 { local tmp:2; GET_SATURATED_AC0M(tmp); export tmp; }
+saturated_xac3_5: is _xac3_5=3 { local tmp:2; GET_SATURATED_AC1M(tmp); export tmp; }
 
-saturated_xacm0: is xacm0=0 { local tmp:2; GET_SATURATED_AC0M(tmp); export tmp; }
-saturated_xacm0: is xacm0=1 { local tmp:2; GET_SATURATED_AC1M(tmp); export tmp; }
+saturated_xacm0: is _xacm0=0 { local tmp:2; GET_SATURATED_AC0M(tmp); export tmp; }
+saturated_xacm0: is _xacm0=1 { local tmp:2; GET_SATURATED_AC1M(tmp); export tmp; }
 
-attach variables [ xax0lh5 ] [ ax0.l ax0.h ];
-attach variables [ xax1lh4 ] [ ax1.l ax1.h ];
+attach variables [ _xax0lh5 ] [ ax0.l ax0.h ];
+attach variables [ _xax1lh4 ] [ ax1.l ax1.h ];
 
-attach variables [ xax4  ] [ ax0   ax1   ];
-attach variables [ xaxl4 ] [ ax0.l ax1.l ];
-attach variables [ xaxh4 ] [ ax0.h ax1.h ];
+attach variables [ _xax4  ] [ ax0   ax1   ];
+attach variables [ _xaxl4 ] [ ax0.l ax1.l ];
+attach variables [ _xaxh4 ] [ ax0.h ax1.h ];
 
-attach variables [ xar5 ] [ ar0 ar1 ];
-attach variables [ xix5 ] [ ix0 ix1 ];
+attach variables [ _xar5 ] [ ar0 ar1 ];
+attach variables [ _xix5 ] [ ix0 ix1 ];
+
+# These are all so that a $ can be prepended to the register name, and should be used in
+# instructions instead of the underscore-prefixed ones.
+ar0_2:       "$"^_ar0_2       is _ar0_2       { export _ar0_2;       }
+ix0_2:       "$"^_ix0_2       is _ix0_2       { export _ix0_2;       }
+ix2_4:       "$"^_ix2_4       is _ix2_4       { export _ix2_4;       }
+reg0_5:      "$"^_reg0_5      is _reg0_5      { export _reg0_5;      }
+ar5_7:       "$"^_ar5_7       is _ar5_7       { export _ar5_7;       }
+ix5_7:       "$"^_ix5_7       is _ix5_7       { export _ix5_7;       }
+reg5_8:      "$"^_reg5_8      is _reg5_8      { export _reg5_8;      }
+reg5_10:     "$"^_reg5_10     is _reg5_10     { export _reg5_10;     }
+acm8:        "$"^_acm8        is _acm8        { export _acm8;        }
+acf8:        "$"^_acf8        is _acf8        { export _acf8;        }
+acs8:        "$"^_acs8        is _acs8        { export _acs8;        }
+ac8_11:      "$"^_ac8_11      is _ac8_11      { export _ac8_11;      }
+ac8_10:      "$"^_ac8_10      is _ac8_10      { export _ac8_10;      }
+ach8display: "$"^_ach8display is _ach8display { export _ach8display; }
+ach8:        "$"^_ach8        is _ach8        { export _ach8;        }
+aacl0:       "$"^_aacl0       is _aacl0       { export _aacl0;       }
+aacm0:       "$"^_aacm0       is _aacm0       { export _aacm0;       }
+aacm1:       "$"^_aacm1       is _aacm1       { export _aacm1;       }
+aacm0_other: "$"^_aacm0_other is _aacm0_other { export _aacm0_other; }
+aacm4:       "$"^_aacm4       is _aacm4       { export _aacm4;       }
+aacf0:       "$"^_aacf0       is _aacf0       { export _aacf0;       }
+aacf0_other: "$"^_aacf0_other is _aacf0_other { export _aacf0_other; }
+aacf3:       "$"^_aacf3       is _aacf3       { export _aacf3;       }
+aacs0:       "$"^_aacs0       is _aacs0       { export _aacs0;       }
+aaxh0:       "$"^_aaxh0       is _aaxh0       { export _aaxh0;       }
+aaxh1:       "$"^_aaxh1       is _aaxh1       { export _aaxh1;       }
+aaxh3:       "$"^_aaxh3       is _aaxh3       { export _aaxh3;       }
+aaxh4:       "$"^_aaxh4       is _aaxh4       { export _aaxh4;       }
+aaxl0:       "$"^_aaxl0       is _aaxl0       { export _aaxl0;       }
+aaxl1:       "$"^_aaxl1       is _aaxl1       { export _aaxl1;       }
+aaxl3:       "$"^_aaxl3       is _aaxl3       { export _aaxl3;       }
+aaxf1:       "$"^_aaxf1       is _aaxf1       { export _aaxf1;       }
+aax1_2:      "$"^_aax1_2      is _aax1_2      { export _aax1_2;      }
+aax0lh1:     "$"^_aax0lh1     is _aax0lh1     { export _aax0lh1;     }
+aax0lh4:     "$"^_aax0lh4     is _aax0lh4     { export _aax0lh4;     }
+aax1lh0:     "$"^_aax1lh0     is _aax1lh0     { export _aax1lh0;     }
+aax1lh3:     "$"^_aax1lh3     is _aax1lh3     { export _aax1lh3;     }
+xar0_2:      "$"^_xar0_2      is _xar0_2      { export _xar0_2;      }
+xix0_2:      "$"^_xix0_2      is _xix0_2      { export _xix0_2;      }
+xac3_6:      "$"^_xac3_6      is _xac3_6      { export _xac3_6;      }
+xax2_4:      "$"^_xax2_4      is _xax2_4      { export _xax2_4;      }
+xax4_6:      "$"^_xax4_6      is _xax4_6      { export _xax4_6;      }
+xac0_2:      "$"^_xac0_2      is _xac0_2      { export _xac0_2;      }
+xac3_5:      "$"^_xac3_5      is _xac3_5      { export _xac3_5;      }
+xacm0:       "$"^_xacm0       is _xacm0       { export _xacm0;       }
+xax0lh5:     "$"^_xax0lh5     is _xax0lh5     { export _xax0lh5;     }
+xax1lh4:     "$"^_xax1lh4     is _xax1lh4     { export _xax1lh4;     }
+xax4:        "$"^_xax4        is _xax4        { export _xax4;        }
+xaxl4:       "$"^_xaxl4       is _xaxl4       { export _xaxl4;       }
+xaxh4:       "$"^_xaxh4       is _xaxh4       { export _xaxh4;       }
+xar5:        "$"^_xar5        is _xar5        { export _xar5;        }
+xix5:        "$"^_xix5        is _xix5        { export _xix5;        }
 
 macro FLAGS16X(result, carry, overflow, over_s32) {
 	$(SR_CARRY) = carry;  # Carry
