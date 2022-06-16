@@ -11,10 +11,10 @@
       <input>
         <!-- This is a guess -->
         <pentry minsize="5" maxsize="5">
-          <register name="ac0"/>
+          <register name="acc0"/>
         </pentry>
         <pentry minsize="5" maxsize="5">
-          <register name="ac1"/>
+          <register name="acc1"/>
         </pentry>
         <pentry minsize="4" maxsize="4">
           <register name="ax0"/>
