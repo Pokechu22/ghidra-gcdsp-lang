@@ -544,30 +544,70 @@ macro FLAGS_SUB40(a, b) {
 	FLAGS40X(a - b, (a >= (a - b)), scarry(a, -b));
 }
 
-op:"NOP" is op0_4=0 & op4_8=0 & op8_16=0 {
+#---------------------------------------------------------------------------------------------------
+# Define regular opcodes and opcode parameters.
+# (These are separated for technical reasons, described at the end of the file.)
+#
+# In this section, bits are numbered like this:
+# 1111 1100 0000 0000
+# 5432 1098 7654 3210
+# (i.e. the most significant bit/leftmost is 15, and the least significant/rightmost bit is 0).
+#---------------------------------------------------------------------------------------------------
+
+# 0000 0000 0000 0000
+with : op0_4=0 & op4_8=0 & op8_16=0 {
+r_opc:"NOP" is epsilon {}
+r_opp:"" is epsilon {}
 }
 
-op:"DAR" ar0_2 is ar0_2 & op2_4=0b01 & op4_8=0 & op8_16=0 {
+# 0000 0000 0000 0001 through 0000 0000 0000 0011 are unused (but probably just other forms of NOP)
+
+# 0000 0000 0000 01dd
+with : op2_4=0b01 & op4_8=0 & op8_16=0 {
+r_opc:"DAR" is epsilon {}
+r_opp:ar0_2 is ar0_2 {
 	ar0_2 = ar0_2 - 1;
 }
-
-op:"IAR" ar0_2 is ar0_2 & op2_4=0b10 & op4_8=0 & op8_16=0 {
-	ar0_2 = ar0_2 - 1;
 }
 
-op:"SUBARN" ar0_2, ix0_2 is ar0_2 & op2_4=0b11 & op4_8=0b0000 & op8_16=0 & ix0_2 {
+# 0000 0000 0000 10dd
+with : op2_4=0b10 & op4_8=0 & op8_16=0 {
+r_opc:"IAR" is epsilon {}
+r_opp:ar0_2 is ar0_2 {
+	ar0_2 = ar0_2 - 1;
+}
+}
+
+# 0000 0000 0000 11dd
+with : op2_4=0b11 & op4_8=0b0000 & op8_16=0 {
+r_opc:"SUBARN" is epsilon {}
+r_opp:ar0_2, ix0_2 is ar0_2 & ix0_2 {
 	ar0_2 = ar0_2 - ix0_2;
 }
+}
 
-op:"ADDARN" ar0_2, ix2_4 is ar0_2 & ix2_4 & op4_8=0b0001 & op8_16=0 {
+# 0000 0000 0001 ssdd
+with : op4_8=0b0001 & op8_16=0 {
+r_opc:"ADDARN" is epsilon {}
+r_opp:ar0_2, ix2_4 is ar0_2 & ix2_4 {
 	ar0_2 = ar0_2 + ix2_4;
 }
-
-op:"HALT" is op0_4=0b0001 & op4_8=0b0010 & op8_16=0 {
-	goto inst_start; # Infinite loop
 }
 
-op:"LOOP" reg0_5          is reg0_5 & op5_8=0b010 & op8_16=0 & saturated_reg0_5 [
+# HALT is the only instruction in 0000 0000 0010 xxxx
+
+# 0000 0000 0010 0001
+with : op0_4=0b0001 & op4_8=0b0010 & op8_16=0 {
+r_opc:"HALT" is epsilon {}
+r_opp:"" is epsilon {
+	goto inst_start; # Infinite loop
+}
+}
+
+# 0000 0000 010r rrrr
+with : op5_8=0b010 & op8_16=0 {
+r_opc:"LOOP" is epsilon {}
+r_opp:reg0_5 is reg0_5 & saturated_reg0_5 [
 	hasloopcheck = 1;
 	hasloopjumpback = 1;
 	loopskipaddr = inst_start + 2;
@@ -579,10 +619,15 @@ op:"LOOP" reg0_5          is reg0_5 & op5_8=0b010 & op8_16=0 & saturated_reg0_5 
 ] {
 	st3 = saturated_reg0_5;
 }
+}
+
+# 0000 0000 011r rrrr aaaa aaaa aaaa aaaa
+# with blocks don't seem to work for multi-token instructions
+r_opc:"BLOOP" is op5_8=0b011 & op8_16=0; imm16 {}
 @ifndef BLOOP_ONE_AFTER
-op:"BLOOP" reg0_5, Addr16 is reg0_5 & op5_8=0b011 & op8_16=0 & saturated_reg0_5; Addr16 & imm16
+r_opp:reg0_5, Addr16 is reg0_5 & saturated_reg0_5 & op5_8=0b011 & op8_16=0; Addr16 & imm16
 @else
-op:"BLOOP" reg0_5, Addr16After is reg0_5 & op5_8=0b011 & op8_16=0 & saturated_reg0_5; Addr16 & Addr16After & imm16
+r_opp:reg0_5, Addr16After is reg0_5 & saturated_reg0_5 & op5_8=0b011 & op8_16=0; Addr16 & Addr16After & imm16
 @endif
 [
 	hasloopcheck = 1;
@@ -597,19 +642,26 @@ op:"BLOOP" reg0_5, Addr16After is reg0_5 & op5_8=0b011 & op8_16=0 & saturated_re
 	st3 = saturated_reg0_5;
 }
 
-op:"LRI" reg0_5, Imm16 is reg0_5 & op5_8=0b100 & op8_16=0 & sign_extend_reg0_5_after; Imm16 {
+# 0000 0000 100d dddd iiii iiii iiii iiii
+r_opc:"LRI" is op5_8=0b100 & op8_16=0; imm16 {}
+r_opp:reg0_5, Imm16 is reg0_5 & op5_8=0b100 & op8_16=0 & sign_extend_reg0_5_after; Imm16 {
 	reg0_5 = Imm16;
 	build sign_extend_reg0_5_after;
 }
 
+# 0000 0000 101x xxxx
 # No instruction with op5_8=0b101 & op8_16=0
 
-op:"LR" reg0_5, Mem16 is reg0_5 & op5_8=0b110 & op8_16=0 & sign_extend_reg0_5_after; Mem16 {
+# 0000 0000 110d dddd mmmm mmmm mmmm mmmm
+r_opc:"LR" is op5_8=0b110 & op8_16=0; imm16 {}
+r_opp:reg0_5, Mem16 is reg0_5 & op5_8=0b110 & op8_16=0 & sign_extend_reg0_5_after; Mem16 {
 	reg0_5 = Mem16;
 	build sign_extend_reg0_5_after;
 }
 
-op:"SR" Mem16, reg0_5 is reg0_5 & op5_8=0b111 & op8_16=0 & saturated_reg0_5; Mem16 {
+# 0000 0000 111s ssss mmmm mmmm mmmm mmmm
+r_opc:"SR" is op5_8=0b111 & op8_16=0; imm16 {}
+r_opp:Mem16, reg0_5 is reg0_5 & op5_8=0b111 & op8_16=0 & saturated_reg0_5; Mem16 {
 	Mem16 = saturated_reg0_5;
 }
 
@@ -630,69 +682,131 @@ cc: "LZ"  is cc0_4=0b1101 { c:1 = $(SR_LOGIC_ZERO); export c; }
 cc: "O"   is cc0_4=0b1110 { c:1 = $(SR_OVERFLOW); export c; }
 # The always variant (cc0_4=0b1111) isn't listed here, so it can be handled separately
 
-op:"IF"^cc is cc & op4_8=0b0111 & op8_16=2 {
+# 0000 0010 0111 cccc
+with : op4_8=0b0111 & op8_16=2 {
+r_opc:"IF"^cc is cc {}
+r_opp:"" is cc {
 	if (!cc) goto inst_next;
 	# Use delayslot to merge the next instruction; this makes goto inst_next skip past the merged instruction
 	# (and also automatically marks the affected instruction, for free!)
 	delayslot(1);
 }
+}
 
-op:"J"^cc Addr16 is cc & op4_8=0b1001 & op8_16=2; Addr16 {
+# 0000 0010 1001 cccc aaaa aaaa aaaa aaaa
+r_opc:"J"^cc is cc & op4_8=0b1001 & op8_16=2; imm16 {}
+r_opp:Addr16 is cc & op4_8=0b1001 & op8_16=2; Addr16 {
 	if (!cc) goto inst_next;
 	goto Addr16;
 }
 
-op:"CALL"^cc Addr16 is cc & op4_8=0b1011 & op8_16=2; Addr16 {
+# 0000 0010 1011 cccc aaaa aaaa aaaa aaaa
+r_opc:"CALL"^cc is cc & op4_8=0b1011 & op8_16=2; imm16 {}
+r_opp:Addr16    is cc & op4_8=0b1011 & op8_16=2; Addr16 {
 	st0 = inst_next;
 	if (!cc) goto inst_next;
 	call Addr16;
 }
 
-op:"RET"^cc is cc & op4_8=0b1101 & op8_16=2 {
+# 0000 0010 1101 cccc
+with : op4_8=0b1101 & op8_16=2 {
+r_opc:"RET"^cc is cc {}
+r_opp:"" is cc {
 	if (!cc) goto inst_next;
 
 	return [st0];
 }
+}
 
-op:"RTI"^cc is cc & op4_8=0b1111 & op8_16=2 {
+# 0000 0010 1111 cccc
+with : op4_8=0b1111 & op8_16=2 {
+r_opc:"RTI"^cc is cc {}
+r_opp:"" is cc {
 	if (!cc) goto inst_next;
 
 	tmp:2 = 0; # TODO: Return address
 	return [tmp];
+}
 }
 
 # Unconditional variants
 
+# 0000 0010 0111 1111
 # Unconditionally execute the next opcode, presumably... not very useful?  Mark as unimpl so that a warning occurs
-op:"IF" is cc0_4=0b1111 & op4_8=0b0111 & op8_16=2 unimpl
+with : cc0_4=0b1111 & op4_8=0b0111 & op8_16=2 {
+r_opc:"IF" is epsilon {}
+r_opp:"" is epsilon unimpl
+}
 
-op:"JMP" Addr16 is cc0_4=0b1111 & op4_8=0b1001 & op8_16=2; Addr16 {
+# 0000 0010 1001 1111 aaaa aaaa aaaa aaaa
+r_opc:"JMP"  is cc0_4=0b1111 & op4_8=0b1001 & op8_16=2; imm16 {}
+r_opp:Addr16 is cc0_4=0b1111 & op4_8=0b1001 & op8_16=2; Addr16 {
 	goto Addr16;
 }
 
-op:"CALL" Addr16 is cc0_4=0b1111 & op4_8=0b1011 & op8_16=2; Addr16 {
+# 0000 0010 1011 1111 aaaa aaaa aaaa aaaa
+r_opc:"CALL" is cc0_4=0b1111 & op4_8=0b1011 & op8_16=2; imm16 {}
+r_opp:Addr16 is cc0_4=0b1111 & op4_8=0b1011 & op8_16=2; Addr16 {
 	st0 = inst_next;
 	call Addr16;
 }
 
-op:"RET" is cc0_4=0b1111 & op4_8=0b1101 & op8_16=2 {
+# 0000 0010 1101 1111
+with : cc0_4=0b1111 & op4_8=0b1101 & op8_16=2 {
+r_opc:"RET" is epsilon {}
+r_opp:"" is epsilon {
 	return [st0];
 }
+}
 
-op:"RTI" is cc0_4=0b1111 & op4_8=0b1111 & op8_16=2 {
+# 0000 0010 1111 1111
+with : cc0_4=0b1111 & op4_8=0b1111 & op8_16=2 {
+r_opc:"RTI" is epsilon {}
+r_opp:"" is epsilon {
 	tmp:2 = 0; # TODO: Return address
 	return [tmp];
 }
+}
 
-op:"ADDI"  acs8, SImm16 is op0_4=0 & op4_8=0b0000 & acs8 & op9_16=1 & acf8; SImm16 { FLAGS_ADD40(acf8, sext(SImm16) << 16); acs8 = acs8 + sext(SImm16); }
-op:"XORI"  acm8, Imm16 is op0_4=0 & op4_8=0b0010 & acm8 & op9_16=1 & acf8; Imm16 { acm8 = acm8 ^ Imm16; FLAGS16(acm8, acf8); }
-op:"ANDI"  acm8, Imm16 is op0_4=0 & op4_8=0b0100 & acm8 & op9_16=1 & acf8; Imm16 { acm8 = acm8 & Imm16; FLAGS16(acm8, acf8); }
-op:"ORI"   acm8, Imm16 is op0_4=0 & op4_8=0b0110 & acm8 & op9_16=1 & acf8; Imm16 { acm8 = acm8 | Imm16; FLAGS16(acm8, acf8); }
-op:"CMPI"  acf8, SImm16 is op0_4=0 & op4_8=0b1000 & acf8 & op9_16=1; SImm16 { FLAGS_SUB40(acf8, sext(SImm16) << 16); }
-op:"ANDF"  acm8, Imm16 is op0_4=0 & op4_8=0b1010 & acm8 & op9_16=1; Imm16 {
+# 0000 001d 0000 0000 iiii iiii iiii iiii
+r_opc:"ADDI" is op0_4=0 & op4_8=0b0000 & op9_16=1; imm16 {}
+r_opp:acs8, SImm16 is op0_4=0 & op4_8=0b0000 & acs8 & op9_16=1 & acf8; SImm16 {
+	FLAGS_ADD40(acf8, sext(SImm16) << 16); acs8 = acs8 + sext(SImm16);
+}
+
+# 0000 001d 0010 0000 iiii iiii iiii iiii
+r_opc:"XORI" is op0_4=0 & op4_8=0b0010 & op9_16=1; imm16 {}
+r_opp:acm8, Imm16 is op0_4=0 & op4_8=0b0010 & acm8 & op9_16=1 & acf8; Imm16 {
+	acm8 = acm8 ^ Imm16; FLAGS16(acm8, acf8);
+}
+
+# 0000 001d 0100 0000 iiii iiii iiii iiii
+r_opc:"ANDI" is op0_4=0 & op4_8=0b0100 & op9_16=1; imm16 {}
+r_opp:acm8, Imm16 is op0_4=0 & op4_8=0b0100 & acm8 & op9_16=1 & acf8; Imm16 {
+	acm8 = acm8 & Imm16; FLAGS16(acm8, acf8);
+}
+
+# 0000 001d 0110 0000 iiii iiii iiii iiii
+r_opc:"ORI" is op0_4=0 & op4_8=0b0110 & op9_16=1; imm16 {}
+r_opp:acm8, Imm16 is op0_4=0 & op4_8=0b0110 & acm8 & op9_16=1 & acf8; Imm16 {
+	acm8 = acm8 | Imm16; FLAGS16(acm8, acf8);
+}
+
+# 0000 001d 1000 0000 iiii iiii iiii iiii
+r_opc:"CMPI" is op0_4=0 & op4_8=0b1000 & op9_16=1; imm16 {}
+r_opp:acf8, SImm16 is op0_4=0 & op4_8=0b1000 & acf8 & op9_16=1; SImm16 {
+	FLAGS_SUB40(acf8, sext(SImm16) << 16);
+}
+
+# 0000 001d 1010 0000 iiii iiii iiii iiii
+r_opc:"ANDF" is op0_4=0 & op4_8=0b1010 & op9_16=1; imm16 {}
+r_opp:acm8, Imm16 is op0_4=0 & op4_8=0b1010 & acm8 & op9_16=1; Imm16 {
 	$(SR_LOGIC_ZERO) = ((acm8 & Imm16) == 0);
 }
-op:"ANDCF" acm8, Imm16 is op0_4=0 & op4_8=0b1100 & acm8 & op9_16=1; Imm16 {
+
+# 0000 001d 1100 0000 iiii iiii iiii iiii
+r_opc:"ANDCF" is op0_4=0 & op4_8=0b1100 & op9_16=1; imm16 {}
+r_opp:acm8, Imm16 is op0_4=0 & op4_8=0b1100 & acm8 & op9_16=1; Imm16 {
 	$(SR_LOGIC_ZERO) = ((acm8 & Imm16) == Imm16);
 }
 
@@ -747,52 +861,94 @@ macro TwoWayArithmeticShift(value, shift) {
 }
 @endif
 
-# TODO: Not documented.  Dolphin's DSPTables.cpp mentions "these two were discovered by ector".
+# Dolphin's DSPTables.cpp mentions "these two were discovered by ector".
 # These two operate directly on acc0 and ac1.m.
-op:"LSRN" is op0_4=0b1010 & op4_8=0b1100 & op8_16=2 {
+# 0000 0010 1100 1010
+with : op0_4=0b1010 & op4_8=0b1100 & op8_16=2 {
+r_opc:"LSRN" is epsilon {}
+r_opp:"" is epsilon {
 	TwoWayLogicalShift(acc0, ac1.m);
 }
-op:"ASRN" is op0_4=0b1011 & op4_8=0b1100 & op8_16=2 {
-	TwoWayArithmeticShift(acc0, ac1.m);
 }
 
-op:"ILRR" acm8, "@"^ar0_2 is ar0_2 & op2_4=0 & op4_8=1 & acm8 & op9_16=1 & sign_extend_acm8_after {
+# 0000 0010 1100 1011
+with : op0_4=0b1011 & op4_8=0b1100 & op8_16=2 {
+r_opc:"ASRN" is epsilon {}
+r_opp:"" is epsilon {
+	TwoWayArithmeticShift(acc0, ac1.m);
+}
+}
+
+# 0000 001d 0001 00ss
+with : op2_4=0 & op4_8=1 & op9_16=1 {
+r_opc:"ILRR" is epsilon {}
+r_opp:acm8, "@"^ar0_2 is ar0_2 & acm8 & sign_extend_acm8_after {
 	acm8 = *[inst]:2 ar0_2;
 	build sign_extend_acm8_after;
 }
+}
 
-op:"ILRRD" acm8, "@"^ar0_2 is ar0_2 & op2_4=1 & op4_8=1 & acm8 & op9_16=1 & sign_extend_acm8_after {
+# 0000 001d 0001 01ss
+with : op2_4=1 & op4_8=1 & op9_16=1 {
+r_opc:"ILRRD" is epsilon {}
+r_opp:acm8, "@"^ar0_2 is ar0_2 & acm8 & sign_extend_acm8_after {
 	acm8 = *[inst]:2 ar0_2;
 	ar0_2 = ar0_2 - 1;
 	build sign_extend_acm8_after;
 }
+}
 
-op:"ILRRI" acm8, "@"^ar0_2 is ar0_2 & op2_4=2 & op4_8=1 & acm8 & op9_16=1 & sign_extend_acm8_after {
+# 0000 001d 0001 10ss
+with : op2_4=2 & op4_8=1 & op9_16=1 {
+r_opc:"ILRRI" is epsilon {}
+r_opp:acm8, "@"^ar0_2 is ar0_2 & acm8 & sign_extend_acm8_after {
 	acm8 = *[inst]:2 ar0_2;
 	ar0_2 = ar0_2 + 1;
 	build sign_extend_acm8_after;
 }
+}
 
+# 0000 001d 0001 11ss
 # ar0_2 and ix0_2 are the same bits in the instruction.  The manual doesn't show ix0_2, but I've included it in the disassembly.
-op:"ILRRN" acm8, "@"^ar0_2, ix0_2 is ar0_2 & op2_4=3 & op4_8=1 & acm8 & op9_16=1 & ix0_2 & sign_extend_acm8_after {
+with : op2_4=3 & op4_8=1 & op9_16=1 {
+r_opc:"ILRRN" is epsilon {}
+r_opp:acm8, "@"^ar0_2, ix0_2 is ar0_2 & acm8 & ix0_2 & sign_extend_acm8_after {
 	acm8 = *[inst]:2 ar0_2;
 	ar0_2 = ar0_2 + ix0_2;
 	build sign_extend_acm8_after;
 }
+}
 
-op:"ADDIS" acf8, SImm8 is SImm8 & acf8 & op9_16=0b0000010 & acs8 {
+# 0000 010d iiii iiii
+with : op9_16=0b0000010 {
+r_opc:"ADDIS" is epsilon {}
+r_opp:acf8, SImm8 is SImm8 & acf8 & acs8 {
 	FLAGS_ADD40(acf8, sext(SImm8) << 16);
 	acs8 = acs8 + sext(SImm8);
 }
-op:"CMPIS" acf8, SImm8 is SImm8 & acf8 & op9_16=0b0000011 {
+}
+
+# 0000 011d iiii iiii
+with : op9_16=0b0000011 {
+r_opc:"CMPIS" is epsilon {}
+r_opp:acf8, SImm8 is SImm8 & acf8 {
 	FLAGS_SUB40(acf8, sext(SImm8) << 16);
 }
-op:"LRIS" ac8_11, SImm8 is SImm8 & ac8_11 & op11_16=0b00001 & sign_extend_ac8_11_after {
+}
+
+# 0000 1ddd iiii iiii
+with : op11_16=0b00001 {
+r_opc:"LRIS" is epsilon {}
+r_opp:ac8_11, SImm8 is SImm8 & ac8_11 & sign_extend_ac8_11_after {
 	ac8_11 = SImm8;
 	build sign_extend_ac8_11_after;
 }
+}
 
-op:"LOOPI" Imm8 is Imm8 & op8_16=0b00010000 [
+# 0001 0000 iiii iiii
+with : op8_16=0b00010000 {
+r_opc:"LOOPI" is epsilon {}
+r_opp:Imm8 is Imm8 [
 	hasloopcheck = 1;
 	hasloopjumpback = 1;
 	loopskipaddr = inst_start + 2;
@@ -804,10 +960,14 @@ op:"LOOPI" Imm8 is Imm8 & op8_16=0b00010000 [
 ] {
 	st3 = Imm8;
 }
+}
+
+# 0001 0001 iiii iiii aaaa aaaa aaaa aaaa
+r_opc:"BLOOPI" is op8_16=0b00010001; imm16 {}
 @ifndef BLOOP_ONE_AFTER
-op:"BLOOPI" Imm8, Addr16 is Imm8 & op8_16=0b00010001; Addr16 & imm16
+r_opp:Imm8, Addr16 is Imm8 & op8_16=0b00010001; Addr16 & imm16
 @else
-op:"BLOOPI" Imm8, Addr16After is Imm8 & op8_16=0b00010001; Addr16 & Addr16After & imm16
+r_opp:Imm8, Addr16After is Imm8 & op8_16=0b00010001; Addr16 & Addr16After & imm16
 @endif
 [
 	hasloopcheck = 1;
@@ -822,124 +982,224 @@ op:"BLOOPI" Imm8, Addr16After is Imm8 & op8_16=0b00010001; Addr16 & Addr16After 
 	st3 = Imm8;
 }
 
-# op3_8 is marked as ????? in the table but shown as 0s for the instruction itself
-
-op:"SBCLR" srbit is srbit & op3_8=0 & op8_16=0b00010010 {
+# 0001 0010 xxxx xiii
+# op3_8 is marked as xxxxx in the table but shown as 0s for the instruction itself
+with : op3_8=0 & op8_16=0b00010010 {
+r_opc:"SBCLR" is epsilon {}
+r_opp:srbit is srbit {
 @ifdef USE_REAL_SR_REGISTER
 	sr = sr | 1 << (6 + srbit);
 @else
 	srbit = 1;
 @endif
 }
-op:"SBSET" srbit is srbit & op3_8=0 & op8_16=0b00010011 {
+}
+
+# 0001 0011 xxxx xiii
+with : op3_8=0 & op8_16=0b00010011 {
+r_opc:"SBSET" is epsilon {}
+r_opp:srbit is srbit {
 @ifdef USE_REAL_SR_REGISTER
 	sr = sr & ~(1 << (6 + srbit));
 @else
 	srbit = 0;
 @endif
 }
+}
 
+# 0001 010r 00ii iiii
 # The manual is written such that it implies LSL/LSR and ASL/ASR are the same instruction with a 7-bit signed immediate value,
 # though it treats them as 2 pairs of instructions with a 6-bit value (allegedly somehow sign-extended for the right-shift)
-op:"LSL" acf8, Imm6 is Imm6 & op6_8=0b00 & acf8 & op9_16=0b0001010 {
+with : op6_8=0b00 & op9_16=0b0001010 {
+r_opc:"LSL" is Imm6 & acf8 {}
+r_opp:acf8, Imm6 is Imm6 & acf8 {
 	acf8 = acf8 << Imm6;
 	FLAGS40(acf8);
 }
+}
+
+# 0001 010r 01ii iiii
 # To handle right shifts correctly, we subtract 64 and then negate.
 # Dolphin decodes (well, used to; there's a regression with fmt currently) 1479 as "lsr $ACC0, #-7" which we change to "LSR acc0, #7".
 # Without manual handling, you get "LSR acc0,#0x39" instead.
 # Note that if the immediate value is 0, then a shift of 0 still occurs.  Imm6Right handles this.
-op:"LSR" acf8, Imm6Right is Imm6Right & op6_8=0b01 & acf8 & op9_16=0b0001010  {
+with : op6_8=0b01 & op9_16=0b0001010 {
+r_opc:"LSR" is epsilon {}
+r_opp:acf8, Imm6Right is Imm6Right & acf8 {
 	acf8 = acf8 >> Imm6Right;
 	FLAGS40(acf8);
 }
-op:"ASL" acf8, Imm6 is Imm6 & op6_8=0b10 & acf8 & op9_16=0b0001010 {
+}
+
+# 0001 010r 10ii iiii
+with : op6_8=0b10 & op9_16=0b0001010 {
+r_opc:"ASL" is epsilon {}
+r_opp:acf8, Imm6 is Imm6 & acf8 {
 	# This doesn't do anything different, does it?
 	acf8 = acf8 << Imm6;
 	FLAGS40(acf8);
 }
-op:"ASR" acf8, Imm6Right is Imm6Right & op6_8=0b11 & acf8 & op9_16=0b0001010 {
+}
+
+# 0001 010r 11ii iiii
+with : op6_8=0b11 & op9_16=0b0001010 {
+r_opc:"ASR" is epsilon {}
+r_opp:acf8, Imm6Right is Imm6Right & acf8 {
 	acf8 = acf8 s>> Imm6Right;
 	FLAGS40(acf8);
 }
+}
 
-op:"SI" Mem8FF, Imm16 is Mem8FF & op8_16=0b00010110; Imm16 {
+# 0001 0110 mmmm mmmm iiii iiii iiii iiii
+r_opc:"SI" is op8_16=0b00010110; imm16 {}
+r_opp:Mem8FF, Imm16 is Mem8FF & op8_16=0b00010110; Imm16 {
 	Mem8FF = Imm16;
 }
 
-op:"JR"^cc reg5_8 is cc & op5=0 & reg5_8 & op8_16=0b00010111 {
+# 0001 0111 rrr0 cccc
+with : op5=0 & op8_16=0b00010111 {
+r_opc:"JR"^cc is cc {}
+r_opp:reg5_8 is cc & reg5_8 {
 	if (!cc) goto inst_next;
 	goto [reg5_8];
 }
+}
 
-op:"CALLR"^cc reg5_8 is cc & op5=1 & reg5_8 & op8_16=0b00010111 {
+# 0001 0111 rrr1 cccc
+with : op5=1 & op8_16=0b00010111 {
+r_opc:"CALLR"^cc is cc {}
+r_opp:reg5_8 is cc & reg5_8 {
 	if (!cc) goto inst_next;
 	# TODO: Update stack
 	call [reg5_8];
 }
-
-op:"JMPR" reg5_8 is cc0_4=0b1111 & op5=0 & reg5_8 & op8_16=0b00010111 {
-	goto [reg5_8];
 }
 
-op:"CALLR" reg5_8 is cc0_4=0b1111 & op5=1 & reg5_8 & op8_16=0b00010111 {
+# 0001 0111 rrr0 1111
+with : cc0_4=0b1111 & op5=0 & op8_16=0b00010111 {
+r_opc:"JMPR" is epsilon {}
+r_opp:reg5_8 is reg5_8 {
+	goto [reg5_8];
+}
+}
+
+# 0001 0111 rrr1 1111
+with : cc0_4=0b1111 & op5=1 & op8_16=0b00010111 {
+r_opc:"CALLR" is epsilon {}
+r_opp:reg5_8 is reg5_8 {
 	# TODO: Update stack
 	call [reg5_8];
 }
+}
 
-op:"LRR"  reg0_5, "@"^ar5_7 is reg0_5 & ar5_7 & op7_9=0b00 & op9_16=0b0001100 & sign_extend_reg0_5_after {
+# 0001 1000 0ssd dddd
+with : op7_9=0b00 & op9_16=0b0001100 {
+r_opc:"LRR" is epsilon {}
+r_opp:reg0_5, "@"^ar5_7 is reg0_5 & ar5_7 & sign_extend_reg0_5_after {
 	reg0_5 = *:2 ar5_7;
 	build sign_extend_reg0_5_after;
 }
-op:"LRRD" reg0_5, "@"^ar5_7 is reg0_5 & ar5_7 & op7_9=0b01 & op9_16=0b0001100 & sign_extend_reg0_5_after {
+}
+
+# 0001 1000 1ssd dddd
+with : op7_9=0b01 & op9_16=0b0001100 {
+r_opc:"LRRD" is epsilon {}
+r_opp:reg0_5, "@"^ar5_7 is reg0_5 & ar5_7 & sign_extend_reg0_5_after {
 	reg0_5 = *:2 ar5_7;
 	ar5_7 = ar5_7 - 1;
 	build sign_extend_reg0_5_after;
 }
-op:"LRRI" reg0_5, "@"^ar5_7 is reg0_5 & ar5_7 & op7_9=0b10 & op9_16=0b0001100 & sign_extend_reg0_5_after {
+}
+
+# 0001 1001 0ssd dddd
+with : op7_9=0b10 & op9_16=0b0001100 {
+r_opc:"LRRI" is epsilon {}
+r_opp:reg0_5, "@"^ar5_7 is reg0_5 & ar5_7 & sign_extend_reg0_5_after {
 	reg0_5 = *:2 ar5_7;
 	ar5_7 = ar5_7 + 1;
 	build sign_extend_reg0_5_after;
 }
-op:"LRRN" reg0_5, "@"^ar5_7, ix5_7 is reg0_5 & ar5_7 & op7_9=0b11 & op9_16=0b0001100 & ix5_7 & sign_extend_reg0_5_after {
+}
+
+# 0001 1001 1ssd dddd
+with : op7_9=0b11 & op9_16=0b0001100 {
+r_opc:"LRRN" is epsilon {}
+r_opp:reg0_5, "@"^ar5_7, ix5_7 is reg0_5 & ar5_7 & ix5_7 & sign_extend_reg0_5_after {
 	reg0_5 = *:2 ar5_7;
 	ar5_7 = ar5_7 + ix5_7;  # ar5_7 and ix5_7 are the same bits in the instruction.  I've included it in the disassembly, but it's not like that in the manual.
 	build sign_extend_reg0_5_after;
 }
+}
 
-op:"SRR"  "@"^ar5_7, reg0_5 is reg0_5 & ar5_7 & op7_9=0b00 & op9_16=0b0001101 & saturated_reg0_5 {
+# 0001 1010 0dds ssss
+with : op7_9=0b00 & op9_16=0b0001101 {
+r_opc:"SRR" is epsilon {}
+r_opp:"@"^ar5_7, reg0_5 is reg0_5 & ar5_7 & saturated_reg0_5 {
 	*:2 ar5_7 = saturated_reg0_5;
 }
-op:"SRRD" "@"^ar5_7, reg0_5 is reg0_5 & ar5_7 & op7_9=0b01 & op9_16=0b0001101 & saturated_reg0_5 {
+}
+
+# 0001 1010 1dds ssss
+with : op7_9=0b01 & op9_16=0b0001101 {
+r_opc:"SRRD" is epsilon {}
+r_opp:"@"^ar5_7, reg0_5 is reg0_5 & ar5_7 & saturated_reg0_5 {
 	*:2 ar5_7 = saturated_reg0_5;
 	ar5_7 = ar5_7 - 1;
 }
-op:"SRRI" "@"^ar5_7, reg0_5 is reg0_5 & ar5_7 & op7_9=0b10 & op9_16=0b0001101 & saturated_reg0_5 {
+}
+
+# 0001 1011 0dds ssss
+with : op7_9=0b10 & op9_16=0b0001101 {
+r_opc:"SRRI" is epsilon {}
+r_opp:"@"^ar5_7, reg0_5 is reg0_5 & ar5_7 & saturated_reg0_5 {
 	*:2 ar5_7 = saturated_reg0_5;
 	ar5_7 = ar5_7 + 1;
 }
-op:"SRRN" "@"^ar5_7, reg0_5, ix5_7 is reg0_5 & ar5_7 & op7_9=0b11 & op9_16=0b0001101 & ix5_7 & saturated_reg0_5 {
+}
+
+# 0001 1011 1dds ssss
+with : op7_9=0b11 & op9_16=0b0001101 {
+r_opc:"SRRN" is epsilon {}
+r_opp:"@"^ar5_7, reg0_5, ix5_7 is reg0_5 & ar5_7 & ix5_7 & saturated_reg0_5 {
 	*:2 ar5_7 = saturated_reg0_5;
 	ar5_7 = ar5_7 + ix5_7;  # ar5_7 and ix5_7 are the same bits in the instruction.  I've included it in the disassembly, but it's not like that in the manual.
 }
+}
 
-op:"MRR" reg5_10, reg0_5 is reg0_5 & reg5_10 & op10_16=0b000111 & sign_extend_reg5_10_after & saturated_reg0_5 {
+# 0001 11dd ddds ssss
+with : op10_16=0b000111 {
+r_opc:"MRR" is epsilon {}
+r_opp:reg5_10, reg0_5 is reg0_5 & reg5_10 & sign_extend_reg5_10_after & saturated_reg0_5 {
 	reg5_10 = saturated_reg0_5;
 	build sign_extend_reg5_10_after;
 }
+}
 
-op:"LRS" ac8_11, Mem8CR is Mem8CR & ac8_11 & op11_16=0b00100 & sign_extend_ac8_11_after {
+# 0010 0ddd mmmm mmmm
+with : op11_16=0b00100 {
+r_opc:"LRS" is epsilon {}
+r_opp:ac8_11, Mem8CR is ac8_11 & Mem8CR & sign_extend_ac8_11_after {
 	ac8_11 = Mem8CR;
 	build sign_extend_ac8_11_after;
 }
-# 0b0010 100s mmmm mmmm
-op:"SRSH" Mem8CR, ach8display is Mem8CR & ach8display & op9_16=0b0010100 & ach8 {
+}
+
+# 0010 100s mmmm mmmm
+with : op9_16=0b0010100 {
+r_opc:"SRSH" is epsilon {}
+r_opp:Mem8CR, ach8display is Mem8CR & ach8display & ach8 {
 	Mem8CR = sext(ach8);
 }
-# 0b0010 101s mmmm mmmm is unused/unknown
-# 0b0010 11ss mmmm mmmm
-op:"SRS" Mem8CR, ac8_10 is Mem8CR & ac8_10 & op10_16=0b001011 & saturated_ac8_10 {
+}
+
+# 0010 101x mmmm mmmm is unused and seems to do nothing
+
+# 0010 11ss mmmm mmmm
+with : op10_16=0b001011 {
+r_opc:"SRS" is epsilon {}
+r_opp:Mem8CR, ac8_10 is Mem8CR & ac8_10 & saturated_ac8_10 {
 	Mem8CR = saturated_ac8_10;
+}
 }
 
 #---------------------------------------------------------------------------------------------------
@@ -1835,6 +2095,8 @@ op:^a_opc^"'"^ext_opc a_opp ":" ext_opp is a_opc & a_opp & ext_opc & ext_opp { b
 # If the extension opcode is set to 0, it seems like it's a NOP.
 # We could explicitly show 'NOP here, but that just adds noise for no benefit.
 op:^a_opc a_opp is a_opc & a_opp & (axbit=0 | aop4_8=0b0011) & xop0_7=0 { build a_opp; }
+
+op:^r_opc r_opp is r_opc & r_opp { build r_opp; }
 
 LoopSkipAddrWrapper: loopskipaddr is loopskipaddr { export *[inst]:2 loopskipaddr; }
 LoopJumpBackAddrWrapper: loopjumpbackaddr is loopjumpbackaddr { export *[inst]:2 loopjumpbackaddr; }
