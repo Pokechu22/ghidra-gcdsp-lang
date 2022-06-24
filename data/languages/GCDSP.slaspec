@@ -115,6 +115,7 @@ define token opbyte (16)
 	op9_16 = (9, 15)
 	op10_16 = (10, 15)
 	op11_16 = (11, 15)
+	op12_16 = (12, 15)
 
 	op5 = (4, 4)
 
@@ -2090,13 +2091,13 @@ ext_opc:ext_opc1 is ext_opc1 & (axbit=1 & aop4_8!=0b0011) {}
 ext_opp:ext_opp1 is ext_opp1 & (axbit=1 & aop4_8!=0b0011) { build ext_opp1; }
 
 # Combine arithmetic ops and extension ops
-op:^a_opc^"'"^ext_opc a_opp ":" ext_opp is a_opc & a_opp & ext_opc & ext_opp { build a_opp; build ext_opp; }
+op:^a_opc^"'"^ext_opc a_opp ":" ext_opp is a_opc & a_opp & ext_opc & ext_opp & (aop4_8>0b0010) { build a_opp; build ext_opp; }
 
 # If the extension opcode is set to 0, it seems like it's a NOP.
 # We could explicitly show 'NOP here, but that just adds noise for no benefit.
-op:^a_opc a_opp is a_opc & a_opp & (axbit=0 | aop4_8=0b0011) & xop0_7=0 { build a_opp; }
+op:^a_opc a_opp is a_opc & a_opp & (axbit=0 | aop4_8=0b0011) & (aop4_8>0b0010) & xop0_7=0 { build a_opp; }
 
-op:^r_opc r_opp is r_opc & r_opp { build r_opp; }
+op:^r_opc r_opp is r_opc ... & r_opp ... & (op12_16<0b0011 ...) { build r_opp; }
 
 LoopSkipAddrWrapper: loopskipaddr is loopskipaddr { export *[inst]:2 loopskipaddr; }
 LoopJumpBackAddrWrapper: loopjumpbackaddr is loopjumpbackaddr { export *[inst]:2 loopjumpbackaddr; }
