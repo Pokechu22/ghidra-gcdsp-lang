@@ -941,393 +941,604 @@ op:"SRS" Mem8CR, ac8_10 is Mem8CR & ac8_10 & op10_16=0b001011 & saturated_ac8_10
 	Mem8CR = saturated_ac8_10;
 }
 
+#---------------------------------------------------------------------------------------------------
 # Define arithmetic opcodes and opcode parameters.
-# We define them separately to match the format in the manual (OPC'EXOPC <opcode parameters> : <extended opcode parameters>).
-# It would also be possible to have regular arithmetic instructions and extension instructions treated as two instructions by Ghirda,
-# but that would have its own problems related to state.
-# For instructions where multiple registers are handled from a single bit (e.g. aacm0 and aacf0 below), the duplicate are included
-# in both bit patterns, even though it is only meaningful in the a_opp table, to make it easy to verify that both patterns are the same.
+# We define them separately to match the format in the manual
+# (OPC'EXOPC <opcode parameters> : <extended opcode parameters>).
+# At first it looks like it would also be possible to have regular arithmetic instructions and
+# extension instructions treated as two single-byte instructions by Ghirda, but in practice that's
+# not possible because when aop4_8=0b0011, the arithmetic opcode is 9 bits and the extension is 7!
+#
+# In this section, bits are numbered like this:
+# 7654 3210 Xxxx xxxx
+# where the X bit (axbit) is only used for aop4_8=0b0011 (3).
+#---------------------------------------------------------------------------------------------------
 
-# Dolphin's DSPTables.cpp indicates that there's some extra dumbness that happens when aop4_8=0b0011:
-# The arithmetic opcode is 9 bits and the extension is 7!  Or in other words, things are a bit of a mess...
-a_opc:"XORR"       is aacm0 & aaxh1 & aop2_4=0 & aop4_8=0b0011 & axbit=0 & aacf0 {}
-a_opp:aacm0, aaxh1 is aacm0 & aaxh1 & aop2_4=0 & aop4_8=0b0011 & axbit=0 & aacf0 {
+# 0011 00sd 0xxx xxxx
+with : aop2_4=0 & aop4_8=0b0011 & axbit=0 {
+a_opc:"XORR" is epsilon {}
+a_opp:aacm0, aaxh1 is aacm0 & aaxh1 & aacf0 {
 	aacm0 = aacm0 ^ aaxh1;
 	FLAGS16(aacm0, aacf0);
 }
+}
 
-a_opc:"ANDR"       is aacm0 & aaxh1 & aop2_4=1 & aop4_8=0b0011 & axbit=0 & aacf0 {}
-a_opp:aacm0, aaxh1 is aacm0 & aaxh1 & aop2_4=1 & aop4_8=0b0011 & axbit=0 & aacf0 {
+# 0011 01sd 0xxx xxxx
+with : aop2_4=1 & aop4_8=0b0011 & axbit=0 {
+a_opc:"ANDR" is epsilon {}
+a_opp:aacm0, aaxh1 is aacm0 & aaxh1 & aacf0 {
 	aacm0 = aacm0 & aaxh1;
 	FLAGS16(aacm0, aacf0);
 }
+}
 
-a_opc:"ORR"        is aacm0 & aaxh1 & aop2_4=2 & aop4_8=0b0011 & axbit=0 & aacf0 {}
-a_opp:aacm0, aaxh1 is aacm0 & aaxh1 & aop2_4=2 & aop4_8=0b0011 & axbit=0 & aacf0 {
+# 0011 10sd 0xxx xxxx
+with : aop2_4=2 & aop4_8=0b0011 & axbit=0 {
+a_opc:"ORR" is epsilon {}
+a_opp:aacm0, aaxh1 is aacm0 & aaxh1 & aacf0 {
 	aacm0 = aacm0 | aaxh1;
 	FLAGS16(aacm0, aacf0);
 }
+}
 
-a_opc:"ANDC"             is aacm0 & aop1=0 & aop2_4=3 & aop4_8=0b0011 & axbit=0 & aacm0_other & aacf0 {}
-a_opp:aacm0, aacm0_other is aacm0 & aop1=0 & aop2_4=3 & aop4_8=0b0011 & axbit=0 & aacm0_other & aacf0 {
+# 0011 110d 0xxx xxxx
+with : aop1=0 & aop2_4=3 & aop4_8=0b0011 & axbit=0 {
+a_opc:"ANDC" is epsilon {}
+a_opp:aacm0, aacm0_other is aacm0 & aacm0_other & aacf0 {
 	aacm0 = aacm0 & aacm0_other;
 	FLAGS16(aacm0, aacf0);
 }
+}
 
-a_opc:"ORC"              is aacm0 & aop1=1 & aop2_4=3 & aop4_8=0b0011 & axbit=0 & aacm0_other & aacf0 {}
-a_opp:aacm0, aacm0_other is aacm0 & aop1=1 & aop2_4=3 & aop4_8=0b0011 & axbit=0 & aacm0_other & aacf0 {
+# 0011 111d 0xxx xxxx
+with : aop1=1 & aop2_4=3 & aop4_8=0b0011 & axbit=0 {
+a_opc:"ORC" is epsilon {}
+a_opp:aacm0, aacm0_other is aacm0 & aacm0_other & aacf0 {
 	aacm0 = aacm0 | aacm0_other;
 	FLAGS16(aacm0, aacf0);
 }
+}
 
-a_opc:"XORC"             is aacm0 & aop1=0 & aop2_4=0 & aop4_8=0b0011 & axbit=1 & aacm0_other & aacf0 {}
-a_opp:aacm0, aacm0_other is aacm0 & aop1=0 & aop2_4=0 & aop4_8=0b0011 & axbit=1 & aacm0_other & aacf0 {
+# 0011 000d 1xxx xxxx
+with : aop1=0 & aop2_4=0 & aop4_8=0b0011 & axbit=1 {
+a_opc:"XORC" is epsilon {}
+a_opp:aacm0, aacm0_other is aacm0 & aacm0_other & aacf0 {
 	aacm0 = aacm0 ^ aacm0_other;
 	FLAGS16(aacm0, aacf0);
 }
+}
 
-a_opc:"NOT" is aacm0 & aop1=1 & aop2_4=0 & aop4_8=0b0011 & axbit=1 & aacf0 {}
-a_opp:aacm0 is aacm0 & aop1=1 & aop2_4=0 & aop4_8=0b0011 & axbit=1 & aacf0 {
+# 0011 001d 1xxx xxxx
+with : aop1=1 & aop2_4=0 & aop4_8=0b0011 & axbit=1 {
+a_opc:"NOT" is epsilon {}
+a_opp:aacm0 is aacm0 & aacf0 {
 	aacm0 = ~aacm0;
 	FLAGS16(aacm0, aacf0);
 }
+}
 
-a_opc:"LSRNRX"     is aacf0 & aaxh1 & aop2_4=1 & aop4_8=0b0011 & axbit=1 {}
-a_opp:aacf0, aaxh1 is aacf0 & aaxh1 & aop2_4=1 & aop4_8=0b0011 & axbit=1 {
+# 0011 01sd 1xxx xxxx
+with : aop2_4=1 & aop4_8=0b0011 & axbit=1 {
+a_opc:"LSRNRX" is epsilon {}
+a_opp:aacf0, aaxh1 is aacf0 & aaxh1 {
 	TwoWayLogicalShift(aacf0, aaxh1[0,6]);
 }
+}
 
-a_opc:"ASRNRX"     is aacf0 & aaxh1 & aop2_4=2 & aop4_8=0b0011 & axbit=1 {}
-a_opp:aacf0, aaxh1 is aacf0 & aaxh1 & aop2_4=2 & aop4_8=0b0011 & axbit=1 {
+# 0011 10sd 1xxx xxxx
+with : aop2_4=2 & aop4_8=0b0011 & axbit=1 {
+a_opc:"ASRNRX" is epsilon {}
+a_opp:aacf0, aaxh1 is aacf0 & aaxh1 {
 	TwoWayArithmeticShift(aacf0, aaxh1[0,6]);
 }
-
-a_opc:"LSRNR"            is aacf0 & aop1=0 & aop2_4=3 & aop4_8=0b0011 & axbit=1 & aacm0_other {}
-a_opp:aacf0, aacm0_other is aacf0 & aop1=0 & aop2_4=3 & aop4_8=0b0011 & axbit=1 & aacm0_other {
-	TwoWayLogicalShift(aacf0, aacm0_other);
 }
 
-a_opc:"ASRNR"            is aacf0 & aop1=1 & aop2_4=3 & aop4_8=0b0011 & axbit=1 & aacm0_other {}
-a_opp:aacf0, aacm0_other is aacf0 & aop1=1 & aop2_4=3 & aop4_8=0b0011 & axbit=1 & aacm0_other {
+# 0011 110d 1xxx xxxx
+with : aop1=0 & aop2_4=3 & aop4_8=0b0011 & axbit=1 {
+a_opc:"LSRNR" is epsilon {}
+a_opp:aacf0, aacm0_other is aacf0 & aacm0_other {
+	TwoWayLogicalShift(aacf0, aacm0_other);
+}
+}
+
+# 0011 111d 1xxx xxxx
+with : aop1=1 & aop2_4=3 & aop4_8=0b0011 & axbit=1 {
+a_opc:"ASRNR" is epsilon {}
+a_opp:aacf0, aacm0_other is aacf0 & aacm0_other {
 	TwoWayArithmeticShift(aacf0, aacm0_other);
+}
 }
 
 # Remaining arithmetic instructions, where aop4_8 != 0b0011:
-a_opc:"ADDR"        is aacf0 & aax1_2 & aop3=0 & aop4_8=0b0100 {}
-a_opp:aacf0, aax1_2 is aacf0 & aax1_2 & aop3=0 & aop4_8=0b0100 {
+# 0100 0ssd xxxx xxxx
+with : aop3=0 & aop4_8=0b0100 {
+a_opc:"ADDR" is epsilon {}
+a_opp:aacf0, aax1_2 is aacf0 & aax1_2 {
 	FLAGS_ADD40(aacf0, sext(aax1_2));
 	aacf0 = aacf0 + sext(aax1_2);
 }
+}
 
-a_opc:"ADDAX"      is aacf0 & aaxf1 & aop2_4=2 & aop4_8=0b0100 {}
-a_opp:aacf0, aaxf1 is aacf0 & aaxf1 & aop2_4=2 & aop4_8=0b0100 {
+# 0100 10sd xxxx xxxx
+with : aop2_4=2 & aop4_8=0b0100 {
+a_opc:"ADDAX" is epsilon {}
+a_opp:aacf0, aaxf1 is aacf0 & aaxf1 {
 	FLAGS_ADD40(aacf0, sext(aaxf1));
 	aacf0 = aacf0 + sext(aaxf1);
 }
+}
 
-a_opc:"ADD"              is aacf0 & aop1=0 & aop2_4=3 & aop4_8=0b0100 & aacf0_other {}
-a_opp:aacf0, aacf0_other is aacf0 & aop1=0 & aop2_4=3 & aop4_8=0b0100 & aacf0_other {
+# 0100 110d xxxx xxxx
+with : aop1=0 & aop2_4=3 & aop4_8=0b0100 {
+a_opc:"ADD" is epsilon {}
+a_opp:aacf0, aacf0_other is aacf0 & aacf0_other {
 	FLAGS_ADD40(aacf0, aacf0_other);
 	aacf0 = aacf0 + aacf0_other;
 }
+}
 
-a_opc:"ADDP" is aacf0 & aop1=1 & aop2_4=3 & aop4_8=0b0100 {}
-a_opp:aacf0  is aacf0 & aop1=1 & aop2_4=3 & aop4_8=0b0100 {
+# 0100 111d xxxx xxxx
+with : aop1=1 & aop2_4=3 & aop4_8=0b0100 {
+a_opc:"ADDP" is epsilon {}
+a_opp:aacf0 is aacf0 {
 	FLAGS_ADD40(aacf0, prod);
 	aacf0 = aacf0 + prod;
 }
+}
 
-a_opc:"SUBR"        is aacf0 & aax1_2 & aop3=0 & aop4_8=0b0101 {}
-a_opp:aacf0, aax1_2 is aacf0 & aax1_2 & aop3=0 & aop4_8=0b0101 {
+# 0101 0ssd xxxx xxxx
+with : aop3=0 & aop4_8=0b0101 {
+a_opc:"SUBR" is epsilon {}
+a_opp:aacf0, aax1_2 is aacf0 & aax1_2 {
 	FLAGS_SUB40(aacf0, sext(aax1_2));
 	aacf0 = aacf0 - sext(aax1_2);
 }
+}
 
-a_opc:"SUBAX"      is aacf0 & aaxf1 & aop2_4=2 & aop4_8=0b0101 {}
-a_opp:aacf0, aaxf1 is aacf0 & aaxf1 & aop2_4=2 & aop4_8=0b0101 {
+# 0101 10sd xxxx xxxx
+with : aop2_4=2 & aop4_8=0b0101 {
+a_opc:"SUBAX" is epsilon {}
+a_opp:aacf0, aaxf1 is aacf0 & aaxf1 {
 	FLAGS_SUB40(aacf0, sext(aaxf1));
 	aacf0 = aacf0 - sext(aaxf1);
 }
+}
 
-a_opc:"SUB"              is aacf0 & aop1=0 & aop2_4=3 & aop4_8=0b0101 & aacf0_other {}
-a_opp:aacf0, aacf0_other is aacf0 & aop1=0 & aop2_4=3 & aop4_8=0b0101 & aacf0_other {
+# 0101 110d xxxx xxxx
+with : aop1=0 & aop2_4=3 & aop4_8=0b0101 {
+a_opc:"SUB" is epsilon {}
+a_opp:aacf0, aacf0_other is aacf0 & aacf0_other {
 	FLAGS_SUB40(aacf0, aacf0_other);
 	aacf0 = aacf0 - aacf0_other;
 }
+}
 
-a_opc:"SUBP" is aacf0 & aop1=1 & aop2_4=3 & aop4_8=0b0101 {}
-a_opp:aacf0  is aacf0 & aop1=1 & aop2_4=3 & aop4_8=0b0101 {
+# 0101 111d xxxx xxxx
+with : aop1=1 & aop2_4=3 & aop4_8=0b0101 {
+a_opc:"SUBP" is epsilon {}
+a_opp:aacf0 is aacf0 {
 	FLAGS_SUB40(aacf0, prod);
 	aacf0 = aacf0 - prod;
 }
+}
 
-a_opc:"MOVR"        is aacf0 & aax1_2 & aop3=0 & aop4_8=0b0110 {}
-a_opp:aacf0, aax1_2 is aacf0 & aax1_2 & aop3=0 & aop4_8=0b0110 {
+# 0110 0ssd xxxx xxxx
+with : aop3=0 & aop4_8=0b0110 {
+a_opc:"MOVR" is epsilon {}
+a_opp:aacf0, aax1_2 is aacf0 & aax1_2 {
 	# high bits sign-extended, middle bits based on value, low bits zeroed
 	# TODO: Use aacs0?
 	aacf0 = sext(aax1_2) << 16;
 	FLAGS40(aacf0);
 }
+}
 
-a_opc:"MOVAX"      is aacf0 & aaxf1 & aop2_4=2 & aop4_8=0b0110 {}
-a_opp:aacf0, aaxf1 is aacf0 & aaxf1 & aop2_4=2 & aop4_8=0b0110 {
+# 0110 10sd xxxx xxxx
+with : aop2_4=2 & aop4_8=0b0110 {
+a_opc:"MOVAX" is epsilon {}
+a_opp:aacf0, aaxf1 is aacf0 & aaxf1 {
 	aacf0 = sext(aaxf1);
 	FLAGS40(aacf0);
 }
+}
 
-a_opc:"MOV"              is aacf0 & aop1=0 & aop2_4=3 & aop4_8=0b0110 & aacf0_other {}
-a_opp:aacf0, aacf0_other is aacf0 & aop1=0 & aop2_4=3 & aop4_8=0b0110 & aacf0_other {
+# 0110 110d xxxx xxxx
+with : aop1=0 & aop2_4=3 & aop4_8=0b0110 {
+a_opc:"MOV" is epsilon {}
+a_opp:aacf0, aacf0_other is aacf0 & aacf0_other {
 	aacf0 = aacf0_other;
 	FLAGS40(aacf0);
 }
+}
 
-a_opc:"MOVP" is aacf0 & aop1=1 & aop2_4=3 & aop4_8=0b0110 {}
-a_opp:aacf0  is aacf0 & aop1=1 & aop2_4=3 & aop4_8=0b0110 {
+# 0110 111d xxxx xxxx
+with : aop1=1 & aop2_4=3 & aop4_8=0b0110 {
+a_opc:"MOVP" is epsilon {}
+a_opp:aacf0 is aacf0 {
 	aacf0 = prod;
 	FLAGS40(aacf0);
 }
+}
 
-a_opc:"ADDAXL"     is aacf0 & aaxl1 & aop2_4=0 & aop4_8=0b0111 {}
-a_opp:aacf0, aaxl1 is aacf0 & aaxl1 & aop2_4=0 & aop4_8=0b0111 {
+# 0111 00sd xxxx xxxx
+with : aop2_4=0 & aop4_8=0b0111 {
+a_opc:"ADDAXL" is epsilon {}
+a_opp:aacf0, aaxl1 is aacf0 & aaxl1 {
 	FLAGS_ADD40(aacf0, zext(aaxl1));
 	aacf0 = aacf0 + zext(aaxl1);  # Note: unsigned extension
 }
+}
 
-a_opc:"INCM" is aacs0 & aop1=0 & aop2_4=1 & aop4_8=0b0111 & aacf0 {}
-a_opp:aacs0  is aacs0 & aop1=0 & aop2_4=1 & aop4_8=0b0111 & aacf0 {
+# 0111 010d xxxx xxxx
+with : aop1=0 & aop2_4=1 & aop4_8=0b0111 {
+a_opc:"INCM" is epsilon {}
+a_opp:aacs0 is aacs0 & aacf0 {
 	FLAGS_ADD40(aacf0, 0x10000);
 	aacs0 = aacs0 + 1;
 }
+}
 
-a_opc:"INC" is aacf0 & aop1=1 & aop2_4=1 & aop4_8=0b0111 {}
-a_opp:aacf0 is aacf0 & aop1=1 & aop2_4=1 & aop4_8=0b0111 {
+# 0111 011d xxxx xxxx
+with : aop1=1 & aop2_4=1 & aop4_8=0b0111 {
+a_opc:"INC" is epsilon {}
+a_opp:aacf0 is aacf0 {
 	FLAGS_ADD40(aacf0, 1);
 	aacf0 = aacf0 + 1;
 }
+}
 
-a_opc:"DECM" is aacs0 & aop1=0 & aop2_4=2 & aop4_8=0b0111 & aacf0 {}
-a_opp:aacs0  is aacs0 & aop1=0 & aop2_4=2 & aop4_8=0b0111 & aacf0 {
+# 0111 100d xxxx xxxx
+with : aop1=0 & aop2_4=2 & aop4_8=0b0111 {
+a_opc:"DECM" is epsilon {}
+a_opp:aacs0 is aacs0 & aacf0 {
 	FLAGS_SUB40(aacf0, 0x10000);
 	aacs0 = aacs0 - 1;
 }
+}
 
-a_opc:"DEC" is aacf0 & aop1=1 & aop2_4=2 & aop4_8=0b0111 {}
-a_opp:aacf0 is aacf0 & aop1=1 & aop2_4=2 & aop4_8=0b0111 {
+# 0111 101d xxxx xxxx
+with : aop1=1 & aop2_4=2 & aop4_8=0b0111 {
+a_opc:"DEC" is epsilon {}
+a_opp:aacf0 is aacf0 {
 	FLAGS_SUB40(aacf0, 1);
 	aacf0 = aacf0 - 1;
 }
+}
 
-a_opc:"NEG" is aacf0 & aop1=0 & aop2_4=3 & aop4_8=0b0111 {}
-a_opp:aacf0 is aacf0 & aop1=0 & aop2_4=3 & aop4_8=0b0111 {
+# 0111 110d xxxx xxxx
+with : aop1=0 & aop2_4=3 & aop4_8=0b0111 {
+a_opc:"NEG" is epsilon {}
+a_opp:aacf0 is aacf0 {
 	FLAGS_SUB40(0, aacf0);
 	aacf0 = -aacf0;
 }
+}
 
-a_opc:"MOVNP" is aacf0 & aop1=1 & aop2_4=3 & aop4_8=0b0111 {}
-a_opp:aacf0   is aacf0 & aop1=1 & aop2_4=3 & aop4_8=0b0111 {
+# 0111 111d xxxx xxxx
+with : aop1=1 & aop2_4=3 & aop4_8=0b0111 {
+a_opc:"MOVNP" is epsilon {}
+a_opp:aacf0 is aacf0 {
 	aacf0 = -prod;
 	FLAGS40(aacf0);
 }
+}
 
+# 1000 x000 xxxx xxxx
 # A NOP that is used to specify only an extended opcode.  Bit 3 can be either 0 or 1.
-a_opc:"NX" is aop0_3=0 & aop4_8=0b1000 {}
-a_opp:""   is aop0_3=0 & aop4_8=0b1000 {}
+with : aop0_3=0 & aop4_8=0b1000 {
+a_opc:"NX" is epsilon {}
+a_opp:""   is epsilon {}
+}
 
-a_opc:"CLR" is aop0_3=1 & aacf3 & aop4_8=0b1000 {}
-a_opp:aacf3 is aop0_3=1 & aacf3 & aop4_8=0b1000 {
+# 1000 r001 xxxx xxxx
+with : aop0_3=1 & aop4_8=0b1000 {
+a_opc:"CLR" is epsilon {}
+a_opp:aacf3 is aacf3 {
 	aacf3 = 0;
 	FLAGS40(aacf3);
 }
+}
 
-a_opc:"CMP" is aop0_3=0b010 & aop3=0 & aop4_8=0b1000 {}
-a_opp:""    is aop0_3=0b010 & aop3=0 & aop4_8=0b1000 {
+# 1000 0010 xxxx xxxx
+with : aop0_3=0b010 & aop3=0 & aop4_8=0b1000 {
+a_opc:"CMP" is epsilon {}
+a_opp:""    is epsilon {
 	FLAGS_SUB40(acc0, acc1);
 }
-
-a_opc:"MULAXH" is aop0_3=0b011 & aop3=0 & aop4_8=0b1000 {}
-a_opp:         is aop0_3=0b011 & aop3=0 & aop4_8=0b1000 {
-	prod = zext(ax0.h) * zext(ax0.h);
 }
 
-a_opc:"CLRP" is aop0_3=0b100 & aop3=0 & aop4_8=0b1000 {}
-a_opp:""     is aop0_3=0b100 & aop3=0 & aop4_8=0b1000 {
+# 1000 0011 xxxx xxxx
+with : aop0_3=0b011 & aop3=0 & aop4_8=0b1000 {
+a_opc:"MULAXH" is epsilon {}
+a_opp:         is epsilon {
+	prod = zext(ax0.h) * zext(ax0.h);
+}
+}
+
+# 1000 0100 xxxx xxxx
+with : aop0_3=0b100 & aop3=0 & aop4_8=0b1000 {
+a_opc:"CLRP" is epsilon {}
+a_opp:""     is epsilon {
 	prod.l  = 0x0000;
 	prod.m1 = 0xfff0;
 	prod.h  = 0x00ff;
 	prod.m2 = 0x0010;
 	prod = 0;
 }
+}
 
-a_opc:"TSTPROD" is aop0_3=0b101 & aop3=0 & aop4_8=0b1000 {}
-a_opp:          is aop0_3=0b101 & aop3=0 & aop4_8=0b1000 {
+# 1000 0101 xxxx xxxx
+with : aop0_3=0b101 & aop3=0 & aop4_8=0b1000 {
+a_opc:"TSTPROD" is epsilon {}
+a_opp:          is epsilon {
 	FLAGS40(prod);
 }
-
-a_opc:"TSTAXH" is aaxh0 & aop1_4=0b011 & aop4_8=0b1000 {}
-a_opp:aaxh0    is aaxh0 & aop1_4=0b011 & aop4_8=0b1000 {
-	FLAGS16X(aaxh0, 0, 0, 0);
 }
 
-a_opc:"M2" is aop0_8=0b10001010 {}
-a_opp:""   is aop0_8=0b10001010 { $(SR_MUL_MODIFY) = 0; }  # 0 indicates modified behavior here
+# 1000 011r xxxx xxxx
+with : aop1_4=0b011 & aop4_8=0b1000 {
+a_opc:"TSTAXH" is epsilon {}
+a_opp:aaxh0 is aaxh0 {
+	FLAGS16X(aaxh0, 0, 0, 0);
+}
+}
 
-a_opc:"M0" is aop0_8=0b10001011 {}
-a_opp:""   is aop0_8=0b10001011 { $(SR_MUL_MODIFY) = 1; }
+# Note: there isn't a gap here; NX (theoretically) has a 1000 1000 form,
+# and CLR $acc1 uses 1000 1001.
 
-a_opc:"CLR15" is aop0_8=0b10001100 {}
-a_opp:""      is aop0_8=0b10001100 { $(SR_MUL_UNSIGNED) = 0; }
+# 1000 1010 xxxx xxxx
+with : aop0_8=0b10001010 {
+a_opc:"M2" is epsilon {}
+a_opp:""   is epsilon { $(SR_MUL_MODIFY) = 0; }  # 0 indicates modified behavior here
+}
 
-a_opc:"SET15" is aop0_8=0b10001101 {}
-a_opp:""      is aop0_8=0b10001101 { $(SR_MUL_UNSIGNED) = 1; }
+# 1000 1011 xxxx xxxx
+with : aop0_8=0b10001011 {
+a_opc:"M0" is epsilon {}
+a_opp:""   is epsilon { $(SR_MUL_MODIFY) = 1; }
+}
 
-a_opc:"SET16" is aop0_8=0b10001110 {}
-a_opp:""      is aop0_8=0b10001110 { $(SR_40_MODE) = 0; }
+# 1000 1100 xxxx xxxx
+with : aop0_8=0b10001100 {
+a_opc:"CLR15" is epsilon {}
+a_opp:""      is epsilon { $(SR_MUL_UNSIGNED) = 0; }
+}
 
-a_opc:"SET40" is aop0_8=0b10001111 {}
-a_opp:""      is aop0_8=0b10001111 { $(SR_40_MODE) = 1; }
+# 1000 1101 xxxx xxxx
+with : aop0_8=0b10001101 {
+a_opc:"SET15" is epsilon {}
+a_opp:""      is epsilon { $(SR_MUL_UNSIGNED) = 1; }
+}
 
+# 1000 1110 xxxx xxxx
+with : aop0_8=0b10001110 {
+a_opc:"SET16" is epsilon {}
+a_opp:""      is epsilon { $(SR_40_MODE) = 0; }
+}
+
+# 1000 1111 xxxx xxxx
+with : aop0_8=0b10001111 {
+a_opc:"SET40" is epsilon {}
+a_opp:""      is epsilon { $(SR_40_MODE) = 1; }
+}
+
+# 1001 s000 xxxx xxxx
 # TODO: "$sr.AM bit affects multiply result"
-a_opc:"MUL"        is aop0_3=0b000 & aaxl3 & aop4_8=0b1001 & aaxh3 {}
-a_opp:aaxl3, aaxh3 is aop0_3=0b000 & aaxl3 & aop4_8=0b1001 & aaxh3 { prod = sext(aaxl3) * sext(aaxh3); }
+with : aop0_3=0b000 & aop4_8=0b1001 {
+a_opc:"MUL" is epsilon {}
+a_opp:aaxl3, aaxh3 is aaxl3 & aaxh3 { prod = sext(aaxl3) * sext(aaxh3); }
+}
 
-a_opc:"ASR16" is aop0_3=0b001 & aacf3 & aop4_8=0b1001 {}
-a_opp:aacf3   is aop0_3=0b001 & aacf3 & aop4_8=0b1001 {
+# 1001 r001 xxxx xxxx
+with : aop0_3=0b001 & aop4_8=0b1001 {
+a_opc:"ASR16" is epsilon {}
+a_opp:aacf3 is aacf3 {
 	aacf3 = aacf3 s>> 16;
 	FLAGS40(aacf3);
 }
+}
 
-a_opc:"MULMVZ"            is aacf0 & aop1_3=0b01 & aaxl3 & aop4_8=0b1001 & aaxh3 {}
-a_opp:aaxl3, aaxh3, aacf0 is aacf0 & aop1_3=0b01 & aaxl3 & aop4_8=0b1001 & aaxh3 {
+# 1001 s01r xxxx xxxx
+with : aop1_3=0b01 & aop4_8=0b1001 {
+a_opc:"MULMVZ" is epsilon {}
+a_opp:aaxl3, aaxh3, aacf0 is aacf0 & aaxl3 & aaxh3 {
 	aacf0 = prod & 0xffffffff0000;
 	prod = sext(aaxl3) * sext(aaxh3);
 	FLAGS40(aacf0);
 }
+}
 
-a_opc:"MULAC"             is aacf0 & aop1_3=0b10 & aaxl3 & aop4_8=0b1001 & aaxh3 {}
-a_opp:aaxl3, aaxh3, aacf0 is aacf0 & aop1_3=0b10 & aaxl3 & aop4_8=0b1001 & aaxh3 {
+# 1001 s10r xxxx xxxx
+with : aop1_3=0b10 & aop4_8=0b1001 {
+a_opc:"MULAC" is epsilon {}
+a_opp:aaxl3, aaxh3, aacf0 is aacf0 & aaxl3 & aaxh3 {
 	aacf0 = aacf0 + prod;
 	prod = sext(aaxl3) * sext(aaxh3);
 	FLAGS40(aacf0);
 }
+}
 
-a_opc:"MULMV"             is aacf0 & aop1_3=0b11 & aaxl3 & aop4_8=0b1001 & aaxh3 {}
-a_opp:aaxl3, aaxh3, aacf0 is aacf0 & aop1_3=0b11 & aaxl3 & aop4_8=0b1001 & aaxh3 {
+# 1001 s11r xxxx xxxx
+with : aop1_3=0b11 & aop4_8=0b1001 {
+a_opc:"MULMV" is epsilon {}
+a_opp:aaxl3, aaxh3, aacf0 is aacf0 & aaxl3 & aaxh3 {
 	aacf0 = prod;
 	prod = sext(aaxl3) * sext(aaxh3);
 	FLAGS40(aacf0);
 }
-
-a_opc:"MULX"           is aop0_3=0b000 & aax1lh3 & aax0lh4 & aop5_8=0b101 & aaxh3 {}
-a_opp:aax0lh4, aax1lh3 is aop0_3=0b000 & aax1lh3 & aax0lh4 & aop5_8=0b101 & aaxh3 {
-	prod = sext(aax0lh4) * sext(aax1lh3);
 }
 
-a_opc:"ABS" is aop0_3=0b001 & aacf3 & aop4_8=0b1010 {}
-a_opp:aacf3 is aop0_3=0b001 & aacf3 & aop4_8=0b1010 {
+# 101s t000 xxxx xxxx
+with : aop0_3=0b000 & aop5_8=0b101 {
+a_opc:"MULX" is epsilon {}
+a_opp:aax0lh4, aax1lh3 is aax1lh3 & aax0lh4 & aaxh3 {
+	prod = sext(aax0lh4) * sext(aax1lh3);
+}
+}
+
+# 1010 d001 xxxx xxxx
+with : aop0_3=0b001 & aop4_8=0b1010 {
+a_opc:"ABS" is epsilon {}
+a_opp:aacf3 is aacf3 {
 	aacf3 = abs(aacf3);
 	FLAGS40(aacf3);
 }
+}
 
-a_opc:"TST" is aop0_3=0b001 & aacf3 & aop4_8=0b1011 {}
-a_opp:aacf3 is aop0_3=0b001 & aacf3 & aop4_8=0b1011 {
+# 1011 r001 xxxx xxxx
+with : aop0_3=0b001 & aop4_8=0b1011 {
+a_opc:"TST" is epsilon {}
+a_opp:aacf3 is aacf3 {
 	FLAGS40(aacf3);
 }
+}
 
-a_opc:"MULXMVZ"               is aacf0 & aop1_3=0b01 & aax1lh3 & aax0lh4 & aop5_8=0b101 {}
-a_opp:aax0lh4, aax1lh3, aacf0 is aacf0 & aop1_3=0b01 & aax1lh3 & aax0lh4 & aop5_8=0b101 {
+# 1011 r001 xxxx xxxx
+with : aop1_3=0b01 & aop5_8=0b101 {
+a_opc:"MULXMVZ" is epsilon {}
+a_opp:aax0lh4, aax1lh3, aacf0 is aacf0 & aax1lh3 & aax0lh4 {
 	aacf0 = prod & 0xffffffff0000;
 	prod = sext(aax0lh4) * sext(aax1lh3);
 	FLAGS40(aacf0);
 }
+}
 
-a_opc:"MULXAC"                is aacf0 & aop1_3=0b10 & aax1lh3 & aax0lh4 & aop5_8=0b101 {}
-a_opp:aax0lh4, aax1lh3, aacf0 is aacf0 & aop1_3=0b10 & aax1lh3 & aax0lh4 & aop5_8=0b101 {
+# 101s t10r xxxx xxxx
+with : aop1_3=0b10 & aop5_8=0b101 {
+a_opc:"MULXAC" is epsilon {}
+a_opp:aax0lh4, aax1lh3, aacf0 is aacf0 & aax1lh3 & aax0lh4 {
 	aacf0 = aacf0 + prod;
 	prod = sext(aax0lh4) * sext(aax1lh3);
 	FLAGS40(aacf0);
 }
+}
 
-a_opc:"MULXMV"                is aacf0 & aop1_3=0b11 & aax1lh3 & aax0lh4 & aop5_8=0b101 {}
-a_opp:aax0lh4, aax1lh3, aacf0 is aacf0 & aop1_3=0b11 & aax1lh3 & aax0lh4 & aop5_8=0b101 {
+# 101s t11r xxxx xxxx
+with : aop1_3=0b11 & aop5_8=0b101 {
+a_opc:"MULXMV" is epsilon {}
+a_opp:aax0lh4, aax1lh3, aacf0 is aacf0 & aax1lh3 & aax0lh4 {
 	aacf0 = prod;
 	prod = sext(aax0lh4) * sext(aax1lh3);
 	FLAGS40(aacf0);
 }
-
-a_opc:"MULC"       is aop0_3=0b000 & aaxh3 & aacm4 & aop5_8=0b110 {}
-a_opp:aacm4, aaxh3 is aop0_3=0b000 & aaxh3 & aacm4 & aop5_8=0b110 {
-	prod = sext(aacm4) * sext(aaxh3);
 }
 
-a_opc:"CMPAXH"     is aop0_3=0b001 & aacf3 & aaxh4 & aop5_8=0b110 {}
-a_opp:aacf3, aaxh4 is aop0_3=0b001 & aacf3 & aaxh4 & aop5_8=0b110 {
+# 110s t000 xxxx xxxx
+with : aop0_3=0b000 & aop5_8=0b110 {
+a_opc:"MULC" is epsilon {}
+a_opp:aacm4, aaxh3 is aaxh3 & aacm4 {
+	prod = sext(aacm4) * sext(aaxh3);
+}
+}
+
+# 110r s001 xxxx xxxx
+with : aop0_3=0b001 & aop5_8=0b110 {
+a_opc:"CMPAXH" is epsilon {}
+a_opp:aacf3, aaxh4 is aacf3 & aaxh4 {
 	FLAGS_SUB40(aacf3, (sext(aaxh4) << 16));
 }
+}
 
-a_opc:"MULCMVZ"           is aacf0 & aop1_3=0b01 & aaxh3 & aacm4 & aop5_8=0b110 {}
-a_opp:aacm4, aaxh3, aacf0 is aacf0 & aop1_3=0b01 & aaxh3 & aacm4 & aop5_8=0b110 {
+# 110s t01r xxxx xxxx
+with : aop1_3=0b01 & aop5_8=0b110 {
+a_opc:"MULCMVZ" is epsilon {}
+a_opp:aacm4, aaxh3, aacf0 is aacf0 & aaxh3 & aacm4 {
 	aacf0 = prod & 0xffffffff0000;
 	prod = sext(aacm4) * sext(aaxh3);
 	FLAGS40(aacf0);
 }
+}
 
-a_opc:"MULCAC"            is aacf0 & aop1_3=0b10 & aaxh3 & aacm4 & aop5_8=0b110 {}
-a_opp:aacm4, aaxh3, aacf0 is aacf0 & aop1_3=0b10 & aaxh3 & aacm4 & aop5_8=0b110 {
+# 110s t10r xxxx xxxx
+with : aop1_3=0b10 & aop5_8=0b110 {
+a_opc:"MULCAC" is epsilon {}
+a_opp:aacm4, aaxh3, aacf0 is aacf0 & aaxh3 & aacm4 {
 	aacf0 = aacf0 + prod;
 	prod = sext(aacm4) * sext(aaxh3);
 	FLAGS40(aacf0);
 }
+}
 
-a_opc:"MULCMV"            is aacf0 & aop1_3=0b11 & aaxh3 & aacm4 & aop5_8=0b110  {}
-a_opp:aacm4, aaxh3, aacf0 is aacf0 & aop1_3=0b11 & aaxh3 & aacm4 & aop5_8=0b110 {
+# 110s t11r xxxx xxxx
+with : aop1_3=0b11 & aop5_8=0b110 {
+a_opc:"MULCMV" is epsilon {}
+a_opp:aacm4, aaxh3, aacf0 is aacf0 & aaxh3 & aacm4 {
 	aacf0 = prod;
 	prod = sext(aacm4) * sext(aaxh3);
 	FLAGS40(aacf0);
 }
+}
 
-a_opc:"MADDX"          is aax1lh0 & aax0lh1 & aop2_4=0b00 & aop4_8=0b1110 {}
-a_opp:aax0lh1, aax1lh0 is aax1lh0 & aax0lh1 & aop2_4=0b00 & aop4_8=0b1110 {
+# 1110 00st xxxx xxxx
+with : aop2_4=0b00 & aop4_8=0b1110 {
+a_opc:"MADDX" is epsilon {}
+a_opp:aax0lh1, aax1lh0 is aax1lh0 & aax0lh1 {
 	prod = prod + (sext(aax0lh1) * sext(aax1lh0));
 }
+}
 
-a_opc:"MSUBX"          is aax1lh0 & aax0lh1 & aop2_4=0b01 & aop4_8=0b1110 {}
-a_opp:aax0lh1, aax1lh0 is aax1lh0 & aax0lh1 & aop2_4=0b01 & aop4_8=0b1110 {
+# 1110 01st xxxx xxxx
+with : aop2_4=0b01 & aop4_8=0b1110 {
+a_opc:"MSUBX" is epsilon {}
+a_opp:aax0lh1, aax1lh0 is aax1lh0 & aax0lh1 {
 	prod = prod - (sext(aax0lh1) * sext(aax1lh0));
 }
+}
 
-a_opc:"MADDC"      is aaxh0 & aacm1 & aop2_4=0b10 & aop4_8=0b1110 {}
-a_opp:aacm1, aaxh0 is aaxh0 & aacm1 & aop2_4=0b10 & aop4_8=0b1110 {
+# 1110 10st xxxx xxxx
+with : aop2_4=0b10 & aop4_8=0b1110 {
+a_opc:"MADDC" is epsilon {}
+a_opp:aacm1, aaxh0 is aaxh0 & aacm1 {
 	prod = prod + (sext(aacm1) * sext(aaxh0));
 }
+}
 
-a_opc:"MSUBC"      is aaxh0 & aacm1 & aop2_4=0b11 & aop4_8=0b1110 {}
-a_opp:aacm1, aaxh0 is aaxh0 & aacm1 & aop2_4=0b11 & aop4_8=0b1110 {
+# 1110 11st xxxx xxxx
+with : aop2_4=0b11 & aop4_8=0b1110 {
+a_opc:"MSUBC" is epsilon {}
+a_opp:aacm1, aaxh0 is aaxh0 & aacm1 {
 	prod = prod - (sext(aacm1) * sext(aaxh0));
 }
-a_opc:"LSL16" is aacf0 & aop1_4=0b000 & aop4_8=0b1111 {}
-a_opp:aacf0   is aacf0 & aop1_4=0b000 & aop4_8=0b1111 {
+}
+
+# 1111 000r xxxx xxxx
+with : aop1_4=0b000 & aop4_8=0b1111 {
+a_opc:"LSL16" is epsilon {}
+a_opp:aacf0 is aacf0 {
 	aacf0 = aacf0 << 16;
 	FLAGS40(aacf0);
 }
-
-a_opc:"MADD"       is aaxl0 & aop1_4=0b001 & aop4_8=0b1111 & aaxh0 {}
-a_opp:aaxl0, aaxh0 is aaxl0 & aop1_4=0b001 & aop4_8=0b1111 & aaxh0 {
-	prod = prod + (sext(aaxl0) * sext(aaxh0));
 }
 
-a_opc:"LSR16" is aacf0 & aop1_4=0b010 & aop4_8=0b1111 {}
-a_opp:aacf0   is aacf0 & aop1_4=0b010 & aop4_8=0b1111 {
+# 1111 001s xxxx xxxx
+with : aop1_4=0b001 & aop4_8=0b1111 {
+a_opc:"MADD" is epsilon {}
+a_opp:aaxl0, aaxh0 is aaxl0 & aaxh0 {
+	prod = prod + (sext(aaxl0) * sext(aaxh0));
+}
+}
+
+# 1111 010r xxxx xxxx
+with : aop1_4=0b010 & aop4_8=0b1111 {
+a_opc:"LSR16" is epsilon {}
+a_opp:aacf0   is aacf0 {
 	aacf0 = aacf0 >> 16;
 	FLAGS40(aacf0);
 }
-
-a_opc:"MSUB"       is aaxl0 & aop1_4=0b011 & aop4_8=0b1111 & aaxh0 {}
-a_opp:aaxl0, aaxh0 is aaxl0 & aop1_4=0b011 & aop4_8=0b1111 & aaxh0 {
-	prod = prod - (sext(aaxl0) * sext(aaxh0));
 }
 
-a_opc:"ADDPAXZ"    is aacf0 & aaxf1 & aop2_4=0b10 & aop4_8=0b1111 {}
-a_opp:aacf0, aaxf1 is aacf0 & aaxf1 & aop2_4=0b10 & aop4_8=0b1111 {
+# 1111 011s xxxx xxxx
+with : aop1_4=0b011 & aop4_8=0b1111 {
+a_opc:"MSUB" is epsilon {}
+a_opp:aaxl0, aaxh0 is aaxl0 & aaxh0 {
+	prod = prod - (sext(aaxl0) * sext(aaxh0));
+}
+}
+
+# 1111 10sd xxxx xxxx
+with : aop2_4=0b10 & aop4_8=0b1111 {
+a_opc:"ADDPAXZ" is epsilon {}
+a_opp:aacf0, aaxf1 is aacf0 & aaxf1 {
 	oldprod:5 = prod;
 	# TODO: Does the masking happen before or after?
 	# i.e. do prod.l and ax0.l/ax1.l affect the result?
@@ -1335,188 +1546,280 @@ a_opp:aacf0, aaxf1 is aacf0 & aaxf1 & aop2_4=0b10 & aop4_8=0b1111 {
 	# TODO: Why doesn't this set the overflow bit?
 	FLAGS40X(aacf0, oldprod > aacf0, 0);
 }
+}
 
-a_opc:"CLRL" is aacl0 & aop1_4=0b110 & aop4_8=0b1111 & aacf0 {}
-a_opp:aacl0  is aacl0 & aop1_4=0b110 & aop4_8=0b1111 & aacf0 {
+# 1111 110r xxxx xxxx
+with : aop1_4=0b110 & aop4_8=0b1111 {
+a_opc:"CLRL" is epsilon {}
+a_opp:aacl0 is aacl0 & aacf0 {
 	# TODO: This should be round-to-even
 	aacl0 = 0;
 	FLAGS40(aacf0);
 }
+}
 
-a_opc:"MOVPZ" is aacf0 & aop1_4=0b111 & aop4_8=0b1111 {}
-a_opp:aacf0   is aacf0 & aop1_4=0b111 & aop4_8=0b1111 {
+# 1111 111d xxxx xxxx
+with : aop1_4=0b111 & aop4_8=0b1111 {
+a_opc:"MOVPZ" is epsilon {}
+a_opp:aacf0 is aacf0 {
 	aacf0 = prod & 0xffffffff0000;
 	FLAGS40(aacf0);
 }
+}
 
+#---------------------------------------------------------------------------------------------------
 # Define extension opcodes and opcode parameters.
 # We use two tables: ext_opc0 for bit 7 (axbit) being set to 0, and ext_opc1 for bit 7 being 1.
 # This is so that arithmetic opcodes with aop4_8=0b0011 can be implemented correctly;
 # they only have 7 bits of the extension opcode and treat the top bit as 0.
+#
+# Extension opcodes are executed in parallel with arithmetic opcodes; they both receive the input
+# state (and weird behavior happens if they both write to the same register, which is only possible
+# with 'L or 'LN). This is not currently emulated; instead, we execute the arithmetic opcode
+# followed by the extension opcode.
+#
+# In this section, bits are numbered like this:
+# xxxx xxxx X654 3210
+# where the X bit is used to choose between ext_opc0 and ext_opc1, but not directly used otherwise.
+#---------------------------------------------------------------------------------------------------
 
-# There is no extension instruction with xop2_4=0 and xop4_8=0.
+# xxxx xxxx 0000 00xx
+# xop2_4=0 and xop4_8=0 encodes 'NOP, but we don't explicitly show that because it would result in
+# a lot of noise for no gain. Note that the bottom two bits are unrestricted, though.
 
-ext_opc0:"DR"   is xar0_2 & xop2_4=1 & xop4_7=0 {}
-ext_opp0:xar0_2 is xar0_2 & xop2_4=1 & xop4_7=0 { xar0_2 = xar0_2 - 1; }
+# xxxx xxxx 0000 01rr
+with : xop2_4=1 & xop4_7=0 {
+ext_opc0:"DR" is epsilon {}
+ext_opp0:xar0_2 is xar0_2 { xar0_2 = xar0_2 - 1; }
+}
 
-ext_opc0:"IR"   is xar0_2 & xop2_4=2 & xop4_7=0 {}
-ext_opp0:xar0_2 is xar0_2 & xop2_4=2 & xop4_7=0 { xar0_2 = xar0_2 + 1; }
+# xxxx xxxx 0000 10rr
+with : xop2_4=2 & xop4_7=0 {
+ext_opc0:"IR" is epsilon {}
+ext_opp0:xar0_2 is xar0_2 { xar0_2 = xar0_2 + 1; }
+}
 
+# xxxx xxxx 0000 11rr
 # xar0_2 and xix0_2 are the same bits in the instruction.  The manual doesn't show xix0_2, but I've included it in the disassembly.
-ext_opc0:"NR"           is xar0_2 & xop2_4=3 & xop4_7=0 & xix0_2 {}
-ext_opp0:xar0_2, xix0_2 is xar0_2 & xop2_4=3 & xop4_7=0 & xix0_2 { xar0_2 = xar0_2 + xix0_2; }
+with : xop2_4=3 & xop4_7=0 {
+ext_opc0:"NR" is epsilon {}
+ext_opp0:xar0_2, xix0_2 is xar0_2 & xix0_2 { xar0_2 = xar0_2 + xix0_2; }
+}
 
-ext_opc0:"MV"           is xac0_2 & xax2_4 & xop4_7=1 {}
-ext_opp0:xax2_4, xac0_2 is xac0_2 & xax2_4 & xop4_7=1 & saturated_xac0_2 { xax2_4 = saturated_xac0_2; }
+# xxxx xxxx 0001 ddss
+with : xop4_7=1 {
+ext_opc0:"MV" is epsilon {}
+ext_opp0:xax2_4, xac0_2 is xac0_2 & xax2_4 & saturated_xac0_2 { xax2_4 = saturated_xac0_2; }
+}
 
-ext_opc0:"L"                is xar0_2 & xop2=0 & xac3_6 & xop6=1 {}
-ext_opp0:xac3_6, "@"^xar0_2 is xar0_2 & xop2=0 & xac3_6 & xop6=1 & sign_extend_xac3_6_after { xac3_6 = *:2 xar0_2; xar0_2 = xar0_2 + 1; build sign_extend_xac3_6_after; }
+# xxxx xxxx 01dd d0ss
+with : xop2=0 & xop6=1 {
+ext_opc0:"L" is epsilon {}
+ext_opp0:xac3_6, "@"^xar0_2 is xar0_2 & xac3_6 & sign_extend_xac3_6_after { xac3_6 = *:2 xar0_2; xar0_2 = xar0_2 + 1; build sign_extend_xac3_6_after; }
+}
 
+# xxxx xxxx 01dd d1ss
 # xar0_2 and xix0_2 are the same bits in the instruction.  The manual doesn't show xix0_2, but I've included it in the disassembly.
-ext_opc0:"LN"                       is xar0_2 & xix0_2 & xop2=1 & xac3_6 & xop6=1 {}
-ext_opp0:xac3_6, "@"^xar0_2, xix0_2 is xar0_2 & xix0_2 & xop2=1 & xac3_6 & xop6=1 & sign_extend_xac3_6_after { xac3_6 = *:2 xar0_2; xar0_2 = xar0_2 + xix0_2; build sign_extend_xac3_6_after; }
+with : xop2=1 & xop6=1 {
+ext_opc0:"LN" is epsilon {}
+ext_opp0:xac3_6, "@"^xar0_2, xix0_2 is xar0_2 & xix0_2 & xac3_6 & sign_extend_xac3_6_after { xac3_6 = *:2 xar0_2; xar0_2 = xar0_2 + xix0_2; build sign_extend_xac3_6_after; }
+}
 
-ext_opc1:"LS"          is xacm0 & xop1=0 & xop2_4=0 & xax4_6 & xop6=0 {}
-ext_opp1:xax4_6, xacm0 is xacm0 & xop1=0 & xop2_4=0 & xax4_6 & xop6=0 & saturated_xacm0 {
+# xxxx xxxx 10dd 000s
+with : xop1=0 & xop2_4=0 & xop6=0 {
+ext_opc1:"LS" is epsilon {}
+ext_opp1:xax4_6, xacm0 is xacm0 & xax4_6 & saturated_xacm0 {
 	xax4_6 = *:2 ar0;
 	*:2 ar3 = saturated_xacm0;
 	ar0 = ar0 + 1;
 	ar3 = ar3 + 1;
 }
+}
 
-ext_opc1:"LSN"         is xacm0 & xop1=0 & xop2_4=1 & xax4_6 & xop6=0 {}
-ext_opp1:xax4_6, xacm0 is xacm0 & xop1=0 & xop2_4=1 & xax4_6 & xop6=0 & saturated_xacm0 {
+# xxxx xxxx 10dd 010s
+with : xop1=0 & xop2_4=1 & xop6=0 {
+ext_opc1:"LSN" is epsilon {}
+ext_opp1:xax4_6, xacm0 is xacm0 & xax4_6 & saturated_xacm0 {
 	xax4_6 = *:2 ar0;
 	*:2 ar3 = saturated_xacm0;
 	ar0 = ar0 + ix0;
 	ar3 = ar3 + 1;
 }
+}
 
-ext_opc1:"LSM"         is xacm0 & xop1=0 & xop2_4=2 & xax4_6 & xop6=0 {}
-ext_opp1:xax4_6, xacm0 is xacm0 & xop1=0 & xop2_4=2 & xax4_6 & xop6=0 & saturated_xacm0 {
+# xxxx xxxx 10dd 100s
+with : xop1=0 & xop2_4=2 & xop6=0 {
+ext_opc1:"LSM" is epsilon {}
+ext_opp1:xax4_6, xacm0 is xacm0 & xax4_6 & saturated_xacm0 {
 	xax4_6 = *:2 ar0;
 	*:2 ar3 = saturated_xacm0;
 	ar0 = ar0 + 1;
 	ar3 = ar3 + ix3;
 }
+}
 
-ext_opc1:"LSNM"        is xacm0 & xop1=0 & xop2_4=3 & xax4_6 & xop6=0 {}
-ext_opp1:xax4_6, xacm0 is xacm0 & xop1=0 & xop2_4=3 & xax4_6 & xop6=0 & saturated_xacm0 {
+# xxxx xxxx 10dd 110s
+with : xop1=0 & xop2_4=3 & xop6=0 {
+ext_opc1:"LSNM" is epsilon {}
+ext_opp1:xax4_6, xacm0 is xacm0 & xax4_6 & saturated_xacm0 {
 	xax4_6 = *:2 ar0;
 	*:2 ar3 = saturated_xacm0;
 	ar0 = ar0 + ix0;
 	ar3 = ar3 + ix3;
 }
+}
 
-ext_opc0:"S"                is xar0_2 & xop2=0 & xac3_5 & xop5=1 & xop6=0 {}
-ext_opp0:"@"^xar0_2, xac3_5 is xar0_2 & xop2=0 & xac3_5 & xop5=1 & xop6=0 & saturated_xac3_5 { *:2 xar0_2 = saturated_xac3_5; xar0_2 = xar0_2 + 1; }
+# xxxx xxxx 001s s0dd
+with : xop2=0 & xop5=1 & xop6=0 {
+ext_opc0:"S" is epsilon {}
+ext_opp0:"@"^xar0_2, xac3_5 is xar0_2 & xac3_5 & saturated_xac3_5 { *:2 xar0_2 = saturated_xac3_5; xar0_2 = xar0_2 + 1; }
+}
 
+# xxxx xxxx 001s s1dd
 # xar0_2 and xix0_2 are the same bits in the instruction.  The manual doesn't show xix0_2, but I've included it in the disassembly.
-ext_opc0:"SN"                       is xar0_2 & xop2=1 & xac3_5 & xop5=1 & xop6=0 & xix0_2 {}
-ext_opp0:"@"^xar0_2, xac3_5, xix0_2 is xar0_2 & xop2=1 & xac3_5 & xop5=1 & xop6=0 & xix0_2 & saturated_xac3_5 { *:2 xar0_2 = saturated_xac3_5; xar0_2 = xar0_2 + xix0_2; }
+with : xop2=1 & xop5=1 & xop6=0 {
+ext_opc0:"SN" is epsilon {}
+ext_opp0:"@"^xar0_2, xac3_5, xix0_2 is xar0_2 & xac3_5 & xix0_2 & saturated_xac3_5 { *:2 xar0_2 = saturated_xac3_5; xar0_2 = xar0_2 + xix0_2; }
+}
 
-ext_opc1:"SL"          is xacm0 & xop1=1 & xop2_4=0 & xax4_6 & xop6=0 {}
-ext_opp1:xacm0, xax4_6 is xacm0 & xop1=1 & xop2_4=0 & xax4_6 & xop6=0 & saturated_xacm0 {
+# xxxx xxxx 10dd 001s
+with : xop1=1 & xop2_4=0 & xop6=0 {
+ext_opc1:"SL" is epsilon {}
+ext_opp1:xacm0, xax4_6 is xacm0 & xax4_6 & saturated_xacm0 {
 	xax4_6 = *:2 ar3;
 	*:2 ar0 = saturated_xacm0;
 	ar0 = ar0 + 1;
 	ar3 = ar3 + 1;
 }
+}
 
-ext_opc1:"SLN"         is xacm0 & xop1=1 & xop2_4=1 & xax4_6 & xop6=0 {}
-ext_opp1:xacm0, xax4_6 is xacm0 & xop1=1 & xop2_4=1 & xax4_6 & xop6=0 & saturated_xacm0 {
+# xxxx xxxx 10dd 011s
+with : xop1=1 & xop2_4=1 & xop6=0 {
+ext_opc1:"SLN" is epsilon {}
+ext_opp1:xacm0, xax4_6 is xacm0 & xax4_6 & saturated_xacm0 {
 	xax4_6 = *:2 ar3;
 	*:2 ar0 = saturated_xacm0;
 	ar0 = ar0 + ix0;
 	ar3 = ar3 + 1;
 }
+}
 
-ext_opc1:"SLM"         is xacm0 & xop1=1 & xop2_4=2 & xax4_6 & xop6=0 {}
-ext_opp1:xacm0, xax4_6 is xacm0 & xop1=1 & xop2_4=2 & xax4_6 & xop6=0 & saturated_xacm0 {
+# xxxx xxxx 10dd 101s
+with : xop1=1 & xop2_4=2 & xop6=0 {
+ext_opc1:"SLM" is epsilon {}
+ext_opp1:xacm0, xax4_6 is xacm0 & xax4_6 & saturated_xacm0 {
 	xax4_6 = *:2 ar3;
 	*:2 ar0 = saturated_xacm0;
 	ar0 = ar0 + 1;
 	ar3 = ar3 + ix3;
 }
+}
 
-ext_opc1:"SLNM"        is xacm0 & xop1=1 & xop2_4=3 & xax4_6 & xop6=0 {}
-ext_opp1:xacm0, xax4_6 is xacm0 & xop1=1 & xop2_4=3 & xax4_6 & xop6=0 & saturated_xacm0 {
+# xxxx xxxx 10dd 111s
+with : xop1=1 & xop2_4=3 & xop6=0 {
+ext_opc1:"SLNM" is epsilon {}
+ext_opp1:xacm0, xax4_6 is xacm0 & xax4_6 & saturated_xacm0 {
 	xax4_6 = *:2 ar3;
 	*:2 ar0 = saturated_xacm0;
 	ar0 = ar0 + ix0;
 	ar3 = ar3 + ix3;
 }
+}
 
+# xxxx xxxx 11dr 00ss
 # LD loads to both AX0 and AX1, with the instruction choosing separately for AX0.l vs AX0.h and AX1.l vs AX1.h.
 # ax0 is set to the memory value pointed by a choice of AR0/1/2, while ax1 is set to the memory value pointed by AR3.
 # AR3 cannot be used for the first value, as that encodes LDAX instead.  The address registers are increased by 1 or
 # the corresponding index register (depending on M/N like the other extension instructions).
-ext_opc1:"LD"                         is xar0_2 & xop2_4=0 & xax1lh4 & xax0lh5 & xop6=1 {}
-ext_opp1:xax0lh5, xax1lh4, "@"^xar0_2 is xar0_2 & xop2_4=0 & xax1lh4 & xax0lh5 & xop6=1 {
+with : xop2_4=0 & xop6=1 {
+ext_opc1:"LD" is epsilon {}
+ext_opp1:xax0lh5, xax1lh4, "@"^xar0_2 is xar0_2 & xax1lh4 & xax0lh5 {
 	xax0lh5 = *:2 xar0_2;
 	xax1lh4 = *:2 ar3;
 	xar0_2 = xar0_2 + 1;
 	ar3 = ar3 + 1;
 }
+}
 
+# xxxx xxxx 11sr 0011
 # LDAX sets ax0.h or ax1.h to the memory value pointed by either AR0 or AR1, and
 # ax0.l or ax1.l to the memory value pointed by AR3.  The choice is either both
 # ax0.h and ax0.l or ax1.h and ax1.l.  AR2 cannot be used.  M/N exist like normal.
-ext_opc1:"LDAX"         is xop0_2=3 & xop2_4=0 & xax4 & xar5 & xop6=1 & xaxl4 & xaxh4 {}
-ext_opp1:xax4, "@"^xar5 is xop0_2=3 & xop2_4=0 & xax4 & xar5 & xop6=1 & xaxl4 & xaxh4 {
+with : xop0_2=3 & xop2_4=0 & xop6=1 {
+ext_opc1:"LDAX" is epsilon {}
+ext_opp1:xax4, "@"^xar5 is xax4 & xar5 & xaxl4 & xaxh4 {
 	xaxh4 = *:2 xar5;
 	xaxl4 = *:2 ar3;
 	xar5 = xar5 + 1;
 	ar3 = ar3 + 1;
 }
+}
 
+# xxxx xxxx 11dr 01ss
 # xar0_2 and xix0_2 are the same bits in the instruction.  I haven't included it here (or in LDNM).
-ext_opc1:"LDN"                        is xar0_2 & xop2_4=1 & xax1lh4 & xax0lh5 & xop6=1 & xix0_2 {}
-ext_opp1:xax0lh5, xax1lh4, "@"^xar0_2 is xar0_2 & xop2_4=1 & xax1lh4 & xax0lh5 & xop6=1 & xix0_2 {
+with : xop2_4=1 & xop6=1 {
+ext_opc1:"LDN" is epsilon {}
+ext_opp1:xax0lh5, xax1lh4, "@"^xar0_2 is xar0_2 & xax1lh4 & xax0lh5 & xix0_2 {
 	xax0lh5 = *:2 xar0_2;
 	xax1lh4 = *:2 ar3;
 	xar0_2 = xar0_2 + xix0_2;
 	ar3 = ar3 + 1;
 }
+}
 
-ext_opc1:"LDAXN"        is xop0_2=3 & xop2_4=1 & xax4 & xar5 & xop6=1 & xaxl4 & xaxh4 & xix5 {}
-ext_opp1:xax4, "@"^xar5 is xop0_2=3 & xop2_4=1 & xax4 & xar5 & xop6=1 & xaxl4 & xaxh4 & xix5 {
+# xxxx xxxx 11sr 0111
+with : xop0_2=3 & xop2_4=1 & xop6=1 {
+ext_opc1:"LDAXN" is epsilon {}
+ext_opp1:xax4, "@"^xar5 is xax4 & xar5 & xaxl4 & xaxh4 & xix5 {
 	xaxh4 = *:2 xar5;
 	xaxl4 = *:2 ar3;
 	xar5 = xar5 + xix5;
 	ar3 = ar3 + 1;
 }
+}
 
-ext_opc1:"LDM"                        is xar0_2 & xop2_4=2 & xax1lh4 & xax0lh5 & xop6=1 {}
-ext_opp1:xax0lh5, xax1lh4, "@"^xar0_2 is xar0_2 & xop2_4=2 & xax1lh4 & xax0lh5 & xop6=1 {
+# xxxx xxxx 11dr 10ss
+with : xop2_4=2 & xop6=1 {
+ext_opc1:"LDM" is epsilon {}
+ext_opp1:xax0lh5, xax1lh4, "@"^xar0_2 is xar0_2 & xax1lh4 & xax0lh5 {
 	xax0lh5 = *:2 xar0_2;
 	xax1lh4 = *:2 ar3;
 	xar0_2 = xar0_2 + 1;
 	ar3 = ar3 + ix3;
 }
+}
 
-ext_opc1:"LDAXM"        is xop0_2=3 & xop2_4=2 & xax4 & xar5 & xop6=1 & xaxl4 & xaxh4 {}
-ext_opp1:xax4, "@"^xar5 is xop0_2=3 & xop2_4=2 & xax4 & xar5 & xop6=1 & xaxl4 & xaxh4 {
+# xxxx xxxx 11sr 1011
+with : xop0_2=3 & xop2_4=2 & xop6=1 {
+ext_opc1:"LDAXM" is epsilon {}
+ext_opp1:xax4, "@"^xar5 is xax4 & xar5 & xaxl4 & xaxh4 {
 	xaxh4 = *:2 xar5;
 	xaxl4 = *:2 ar3;
 	xar5 = xar5 + 1;
 	ar3 = ar3 + ix3;
 }
+}
 
-ext_opc1:"LDNM"                       is xar0_2 & xop2_4=3 & xax1lh4 & xax0lh5 & xop6=1 & xix0_2 {}
-ext_opp1:xax0lh5, xax1lh4, "@"^xar0_2 is xar0_2 & xop2_4=3 & xax1lh4 & xax0lh5 & xop6=1 & xix0_2 {
+# xxxx xxxx 11dr 11ss
+with : xop2_4=3 & xop6=1 {
+ext_opc1:"LDNM" is epsilon {}
+ext_opp1:xax0lh5, xax1lh4, "@"^xar0_2 is xar0_2 & xax1lh4 & xax0lh5 & xix0_2 {
 	xax0lh5 = *:2 xar0_2;
 	xax1lh4 = *:2 ar3;
 	xar0_2 = xar0_2 + xix0_2;
 	ar3 = ar3 + ix3;
 }
+}
 
-ext_opc1:"LDAXNM"       is xop0_2=3 & xop2_4=3 & xax4 & xar5 & xop6=1 & xaxl4 & xaxh4 & xix5 {}
-ext_opp1:xax4, "@"^xar5 is xop0_2=3 & xop2_4=3 & xax4 & xar5 & xop6=1 & xaxl4 & xaxh4 & xix5 {
+# xxxx xxxx 11dr 1111
+with : xop0_2=3 & xop2_4=3 & xop6=1 {
+ext_opc1:"LDAXNM" is epsilon{}
+ext_opp1:xax4, "@"^xar5 is xax4 & xar5 & xaxl4 & xaxh4 & xix5 {
 	xaxh4 = *:2 xar5;
 	xaxl4 = *:2 ar3;
 	xar5 = xar5 + xix5;
 	ar3 = ar3 + ix3;
+}
 }
 
 ext_opc:ext_opc0 is ext_opc0 & (axbit=0 | aop4_8=0b0011) {}
