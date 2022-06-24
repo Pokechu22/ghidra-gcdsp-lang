@@ -697,6 +697,66 @@ op:"ANDCF" acm8, Imm16 is op0_4=0 & op4_8=0b1100 & acm8 & op9_16=1; Imm16 {
 	$(SR_LOGIC_ZERO) = ((acm8 & Imm16) == Imm16);
 }
 
+@ifdef SIMPLIFY_SHIFTS
+define pcodeop twowaylogicalshift;
+define pcodeop twowayarithmeticshift;
+
+macro TwoWayLogicalShift(value, shift) {
+	value = twowaylogicalshift(value, shift);
+	FLAGS40(value);
+}
+
+macro TwoWayArithmeticShift(value, shift) {
+	value = twowayarithmeticshift(value, shift);
+	FLAGS40(value);
+}
+@else
+macro TwoWayLogicalShift(value, shift) {
+	# Treated as a signed 7-bit field, like LSL/LSR
+	if (shift[6,1] == 1) goto <rightshift>;
+
+	# left shift
+	value = value << shift[0,6];
+	goto <done>;
+
+	<rightshift>
+	# A right-shift of 64 is actually a right-shift of 0
+	if (shift[0,6] == 0) goto <done>;
+
+	value = value >> (64 - shift[0,6]);
+
+	<done>
+	FLAGS40(value);
+}
+
+macro TwoWayArithmeticShift(value, shift) {
+	# Treated as a signed 7-bit field, like ASL/ASR
+	if (shift[6,1] == 1) goto <rightshift>;
+
+	# left shift
+	value = value << shift[0,6];
+	goto <done>;
+
+	<rightshift>
+	# A right-shift of 64 is actually a right-shift of 0
+	if (shift[0,6] == 0) goto <done>;
+
+	value = value s>> (64 - shift[0,6]);
+
+	<done>
+	FLAGS40(value);
+}
+@endif
+
+# TODO: Not documented.  Dolphin's DSPTables.cpp mentions "these two were discovered by ector".
+# These two operate directly on acc0 and ac1.m.
+op:"LSRN" is op0_4=0b1010 & op4_8=0b1100 & op8_16=2 {
+	TwoWayLogicalShift(acc0, ac1.m);
+}
+op:"ASRN" is op0_4=0b1011 & op4_8=0b1100 & op8_16=2 {
+	TwoWayArithmeticShift(acc0, ac1.m);
+}
+
 op:"ILRR" acm8, "@"^ar0_2 is ar0_2 & op2_4=0 & op4_8=1 & acm8 & op9_16=1 & sign_extend_acm8_after {
 	acm8 = *[inst]:2 ar0_2;
 	build sign_extend_acm8_after;
@@ -802,66 +862,6 @@ op:"ASL" acf8, Imm6 is Imm6 & op6_8=0b10 & acf8 & op9_16=0b0001010 {
 op:"ASR" acf8, Imm6Right is Imm6Right & op6_8=0b11 & acf8 & op9_16=0b0001010 {
 	acf8 = acf8 s>> Imm6Right;
 	FLAGS40(acf8);
-}
-
-@ifdef SIMPLIFY_SHIFTS
-define pcodeop twowaylogicalshift;
-define pcodeop twowayarithmeticshift;
-
-macro TwoWayLogicalShift(value, shift) {
-	value = twowaylogicalshift(value, shift);
-	FLAGS40(value);
-}
-
-macro TwoWayArithmeticShift(value, shift) {
-	value = twowayarithmeticshift(value, shift);
-	FLAGS40(value);
-}
-@else
-macro TwoWayLogicalShift(value, shift) {
-	# Treated as a signed 7-bit field, like LSL/LSR
-	if (shift[6,1] == 1) goto <rightshift>;
-
-	# left shift
-	value = value << shift[0,6];
-	goto <done>;
-
-	<rightshift>
-	# A right-shift of 64 is actually a right-shift of 0
-	if (shift[0,6] == 0) goto <done>;
-
-	value = value >> (64 - shift[0,6]);
-
-	<done>
-	FLAGS40(value);
-}
-
-macro TwoWayArithmeticShift(value, shift) {
-	# Treated as a signed 7-bit field, like ASL/ASR
-	if (shift[6,1] == 1) goto <rightshift>;
-
-	# left shift
-	value = value << shift[0,6];
-	goto <done>;
-
-	<rightshift>
-	# A right-shift of 64 is actually a right-shift of 0
-	if (shift[0,6] == 0) goto <done>;
-
-	value = value s>> (64 - shift[0,6]);
-
-	<done>
-	FLAGS40(value);
-}
-@endif
-
-# TODO: Not documented.  Dolphin's DSPTables.cpp mentions "these two were discovered by ector".
-# These two operate directly on acc0 and ac1.m.
-op:"LSRN" is op0_4=0b1010 & op4_8=0b1100 & op8_16=2 {
-	TwoWayLogicalShift(acc0, ac1.m);
-}
-op:"ASRN" is op0_4=0b1011 & op4_8=0b1100 & op8_16=2 {
-	TwoWayArithmeticShift(acc0, ac1.m);
 }
 
 op:"SI" Mem8FF, Imm16 is Mem8FF & op8_16=0b00010110; Imm16 {
