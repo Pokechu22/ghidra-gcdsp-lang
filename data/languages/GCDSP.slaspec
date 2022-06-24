@@ -116,8 +116,7 @@ define token opbyte (16)
 	op10_16 = (10, 15)
 	op11_16 = (11, 15)
 
-	op0_5 = (0, 4)
-	op5   = (4, 4)
+	op5 = (4, 4)
 
 	_ar0_2 = (0, 1)
 	_ix0_2 = (0, 1)
@@ -680,7 +679,7 @@ op:"RET" is cc0_4=0b1111 & op4_8=0b1101 & op8_16=2 {
 	return [st0];
 }
 
-op:"RTI" is op0_4=0b1111 & op4_8=0b1111 & op8_16=2 {
+op:"RTI" is cc0_4=0b1111 & op4_8=0b1111 & op8_16=2 {
 	tmp:2 = 0; # TODO: Return address
 	return [tmp];
 }
@@ -868,11 +867,8 @@ op:"SI" Mem8FF, Imm16 is Mem8FF & op8_16=0b00010110; Imm16 {
 	Mem8FF = Imm16;
 }
 
-op:"CALLR" reg5_8 is op0_5=0b11111 & reg5_8 & op8_16=0b00010111 {
-	# TODO: Update stack
-	call [reg5_8];
-}
-op:"JMPR" reg5_8 is op0_5=0b01111 & reg5_8 & op8_16=0b00010111 {
+op:"JR"^cc reg5_8 is cc & op5=0 & reg5_8 & op8_16=0b00010111 {
+	if (!cc) goto inst_next;
 	goto [reg5_8];
 }
 
@@ -881,9 +877,14 @@ op:"CALLR"^cc reg5_8 is cc & op5=1 & reg5_8 & op8_16=0b00010111 {
 	# TODO: Update stack
 	call [reg5_8];
 }
-op:"JR"^cc reg5_8 is cc & op5=0 & reg5_8 & op8_16=0b00010111 {
-	if (!cc) goto inst_next;
+
+op:"JMPR" reg5_8 is cc0_4=0b1111 & op5=0 & reg5_8 & op8_16=0b00010111 {
 	goto [reg5_8];
+}
+
+op:"CALLR" reg5_8 is cc0_4=0b1111 & op5=1 & reg5_8 & op8_16=0b00010111 {
+	# TODO: Update stack
+	call [reg5_8];
 }
 
 op:"LRR"  reg0_5, "@"^ar5_7 is reg0_5 & ar5_7 & op7_9=0b00 & op9_16=0b0001100 & sign_extend_reg0_5_after {
