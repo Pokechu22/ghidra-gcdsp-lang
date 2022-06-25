@@ -617,6 +617,11 @@ r_opp:reg0_5 is reg0_5 & saturated_reg0_5 [
 	globalset(inst_next, hasloopjumpback);
 	globalset(inst_next, loopskipaddr);
 	globalset(inst_next, loopjumpbackaddr);
+	# Reset the addresses for this instruction - no looping should happen on this instruction, only the next one.
+	hasloopcheck = 0;
+	hasloopjumpback = 0;
+	loopskipaddr = 0;
+	loopjumpbackaddr = 0;
 ] {
 	st3 = saturated_reg0_5;
 }
@@ -639,6 +644,11 @@ r_opp:reg0_5, Addr16After is reg0_5 & saturated_reg0_5 & op5_8=0b011 & op8_16=0;
 	globalset(Addr16, hasloopjumpback);
 	globalset(inst_next, loopskipaddr);
 	globalset(Addr16, loopjumpbackaddr);
+	# Reset the addresses for this instruction - no looping should happen on this instruction, only the next one.
+	hasloopcheck = 0;
+	hasloopjumpback = 0;
+	loopskipaddr = 0;
+	loopjumpbackaddr = 0;
 ] {
 	st3 = saturated_reg0_5;
 }
@@ -958,6 +968,11 @@ r_opp:Imm8 is Imm8 [
 	globalset(inst_next, hasloopjumpback);
 	globalset(inst_next, loopskipaddr);
 	globalset(inst_next, loopjumpbackaddr);
+	# Reset the addresses for this instruction - no looping should happen on this instruction, only the next one.
+	hasloopcheck = 0;
+	hasloopjumpback = 0;
+	loopskipaddr = 0;
+	loopjumpbackaddr = 0;
 ] {
 	st3 = Imm8;
 }
@@ -979,6 +994,11 @@ r_opp:Imm8, Addr16After is Imm8 & op8_16=0b00010001; Addr16 & Addr16After & imm1
 	globalset(Addr16, hasloopjumpback);
 	globalset(inst_next, loopskipaddr);
 	globalset(Addr16, loopjumpbackaddr);
+	# Reset the addresses for this instruction - no looping should happen on this instruction, only the next one.
+	hasloopcheck = 0;
+	hasloopjumpback = 0;
+	loopskipaddr = 0;
+	loopjumpbackaddr = 0;
 ] {
 	st3 = Imm8;
 }
@@ -2084,34 +2104,56 @@ ext_opp1:xax4, "@"^xar5 is xax4 & xar5 & xaxl4 & xaxh4 & xix5 {
 }
 }
 
-ext_opc:ext_opc0 is ext_opc0 & (axbit=0 | aop4_8=0b0011) {}
-ext_opp:ext_opp0 is ext_opp0 & (axbit=0 | aop4_8=0b0011) { build ext_opp0; }
+#---------------------------------------------------------------------------------------------------
+# Final opcode combination logic
+#
+# We build an opc table for opcodes, and an opp table for parameters. This is so that extension
+# opcodes can be merged with the arithmetic opcode in the form MAIN'EXT main_param : ext_param.
+# We also need this for regular instructions so that we can include loop data in the parameters.
+# Otherwise, when loop data is present, everything gets treated as part of the mnemonic.
+#
+# All semantic actions are performed by the opp table.
+#---------------------------------------------------------------------------------------------------
 
-ext_opc:ext_opc1 is ext_opc1 & (axbit=1 & aop4_8!=0b0011) {}
-ext_opp:ext_opp1 is ext_opp1 & (axbit=1 & aop4_8!=0b0011) { build ext_opp1; }
+# First, deal with axbit's behavior for choosing extension opcodes:
+ext_opc:^ext_opc0 is ext_opc0 & (axbit=0 | aop4_8=0b0011) {}
+ext_opp:^ext_opp0 is ext_opp0 & (axbit=0 | aop4_8=0b0011) { build ext_opp0; }
 
-# Combine arithmetic ops and extension ops
-op:^a_opc^"'"^ext_opc a_opp ":" ext_opp is a_opc & a_opp & ext_opc & ext_opp & (aop4_8>0b0010) { build a_opp; build ext_opp; }
+ext_opc:^ext_opc1 is ext_opc1 & (axbit=1 & aop4_8!=0b0011) {}
+ext_opp:^ext_opp1 is ext_opp1 & (axbit=1 & aop4_8!=0b0011) { build ext_opp1; }
 
-# If the extension opcode is set to 0, it seems like it's a NOP.
+# Regular opcodes are used directly:
+opc:^r_opc is r_opc & (op12_16<0b0011 ...) {}
+opp:^r_opp is r_opp & (op12_16<0b0011 ...) { build r_opp; }
+
+# Combine arithmetic ops and extension ops:
+with : (aop4_8>0b0010) {
+opc:^a_opc^"'"^ext_opc is a_opc & ext_opc {}
+opp:^a_opp ":" ext_opp is a_opp & ext_opp { build a_opp; build ext_opp; }
+
+# If the extension opcode is set to 0, it indicates 'NOP.
 # We could explicitly show 'NOP here, but that just adds noise for no benefit.
-op:^a_opc a_opp is a_opc & a_opp & (axbit=0 | aop4_8=0b0011) & (aop4_8>0b0010) & xop0_7=0 { build a_opp; }
-
-op:^r_opc r_opp is r_opc ... & r_opp ... & (op12_16<0b0011 ...) { build r_opp; }
-
-LoopSkipAddrWrapper: loopskipaddr is loopskipaddr { export *[inst]:2 loopskipaddr; }
-LoopJumpBackAddrWrapper: loopjumpbackaddr is loopjumpbackaddr { export *[inst]:2 loopjumpbackaddr; }
-
-# Regular ops
-loopcheck:^op is hasloopcheck=0 & op { build op; }
-loopcheck:^op is hasloopcheck=1 & op & LoopSkipAddrWrapper {
-	if (st3 == 0) goto LoopSkipAddrWrapper;
-
-	st3 = st3 - 1;
-	build op;
+opc:^a_opc is a_opc & (axbit=0 | aop4_8=0b0011) & xop0_7=0 {}
+opp:^a_opp is a_opp & (axbit=0 | aop4_8=0b0011) & xop0_7=0 { build a_opp; }
 }
-:^loopcheck is hasloopjumpback=0 & loopcheck { build loopcheck; }
-:^loopcheck is hasloopjumpback=1 & loopcheck & LoopJumpBackAddrWrapper {
-	build loopcheck;
+
+# Handle looping logic:
+LoopSkipAddrWrapper: " ->"^loopskipaddr is loopskipaddr { export *[inst]:2 loopskipaddr; }
+LoopJumpBackAddrWrapper: " =>"^loopjumpbackaddr is loopjumpbackaddr { export *[inst]:2 loopjumpbackaddr; }
+
+loopcheck:"" is hasloopcheck=0 {}
+loopcheck:LoopSkipAddrWrapper is hasloopcheck=1 & LoopSkipAddrWrapper {
+	if (st3 == 0) goto LoopSkipAddrWrapper;
+	st3 = st3 - 1;
+}
+loopjumpback:"" is hasloopjumpback=0 {}
+loopjumpback:LoopJumpBackAddrWrapper is hasloopjumpback=1 & LoopJumpBackAddrWrapper {
 	goto LoopJumpBackAddrWrapper;
+}
+
+# Now populate the root instruction table.
+:^opc^" "^opp^loopcheck^loopjumpback is opc & opp & loopcheck & loopjumpback {
+	build loopcheck;
+	build opp;
+	build loopjumpback;
 }
