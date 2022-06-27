@@ -63,6 +63,9 @@
         <register name="st1"/>
         <register name="st2"/>
         <register name="st3"/>
+        <register name="SR_MUL_MODIFY_"/>
+        <register name="SR_40_MODE_"/>
+        <register name="SR_MUL_UNSIGNED_"/>
       </unaffected>
     </prototype>
   </default_proto>
