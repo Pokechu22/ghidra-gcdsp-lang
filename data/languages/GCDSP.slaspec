@@ -575,7 +575,7 @@ r_opp:ar0_2 is ar0_2 {
 with : op2_4=0b10 & op4_8=0 & op8_16=0 {
 r_opc:"IAR" is epsilon {}
 r_opp:ar0_2 is ar0_2 {
-	ar0_2 = ar0_2 - 1;
+	ar0_2 = ar0_2 + 1;
 }
 }
 
