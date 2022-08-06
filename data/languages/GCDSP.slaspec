@@ -60,9 +60,22 @@ define register offset=0xF0 size=8 [ loopcontext ];
 define context loopcontext
 	loopskipaddr = (0,15) noflow
 	hasloopcheck = (16,16) noflow
+	loopstackdepth = (17,18)
 	loopjumpbackaddr = (32,47) noflow
 	hasloopjumpback = (48,48) noflow
 ;
+
+# Loop stack for the current loop counter. We don't currently have st3 directly reflect this value,
+# because doing so would be a bit difficult.
+define register offset=0xD0 size=2 [ st3_0 st3_1 st3_2 st3_3 ];
+# Note: The outermost loop increments loopstackdepth and then uses CurSt3, so index 1 is the first.
+# Although we could reset loopstackdepth for the loop instruction, it needs to be changed for
+# the next instruction for flowing to work, and that instruction is also loopcheck, so it needs to
+# read the stack. Thus, we have this off-by-1 indexing.
+CurSt3: is loopstackdepth=1 { export st3_0; }
+CurSt3: is loopstackdepth=2 { export st3_1; }
+CurSt3: is loopstackdepth=3 { export st3_2; }
+CurSt3: is loopstackdepth=0 { export st3_3; }
 
 # Regular and hacky implementation of status register
 @ifdef USE_REAL_SR_REGISTER
@@ -173,13 +186,12 @@ define token data16 (16)
 ;
 
 Addr16: imm16 is imm16 { export *[inst]:1 imm16; }
-@ifdef BLOOP_ONE_AFTER
 # Formatting convenience: add 1 to the address for BLOOP/BLOOPI, to point to the address after the loop
 # instead of the one in the loop.  This puts a label after the loop instead of inside of the loop.
 # (This is mainly needed because Ghidra generates the label off of the operand, not the actual jump location.
 # Even with this, BLOOP generates a _read_ reference instead of a jump reference, for some reason)
+# Note that this is also used for context variable purposes, even when BLOOP_ONE_AFTER is not defined.
 Addr16After: dest is imm16 [ dest = imm16 + 1; ] { export *[inst]:1 dest; }
-@endif
 Imm16: "#"^imm16 is imm16 { export *[const]:2 imm16; }
 SImm16: "#"^simm16 is simm16 { export *[const]:2 simm16; }
 Mem16: "@"^imm16 is imm16 { export *:2 imm16; }
@@ -605,25 +617,35 @@ r_opp:"" is epsilon {
 }
 }
 
+# Wrapper for the loop skip address, for use in LOOP and LOOPI for setting loopstackdepth.
+# Note that although "globalset(loopskipaddr, loopstackdepth)" is valid, it behaves incorrectly
+# due to the 2-byte word size (e.g. if inst_start is 0x400, globalset(loopskipaddr) would use
+# address 0x201 instead of address 0x402). Using a wrapper like this avoids the issue, for some
+# reason (perhaps because it's marking it as a pointer?)
+AfterLoopWrapper:tmp is epsilon [ tmp = inst_start + 2; ] { export *[inst]:1 tmp; }
+
 # 0000 0000 010r rrrr
 with : op5_8=0b010 & op8_16=0 {
 r_opc:"LOOP" is epsilon {}
-r_opp:reg0_5 is reg0_5 & saturated_reg0_5 [
+r_opp:reg0_5 is reg0_5 & saturated_reg0_5 & CurSt3 & AfterLoopWrapper [
 	hasloopcheck = 1;
 	hasloopjumpback = 1;
 	loopskipaddr = inst_start + 2;
 	loopjumpbackaddr = inst_start + 1;
+	globalset(AfterLoopWrapper, loopstackdepth);
+	loopstackdepth = loopstackdepth + 1;
 	globalset(inst_next, hasloopcheck);
 	globalset(inst_next, hasloopjumpback);
 	globalset(inst_next, loopskipaddr);
 	globalset(inst_next, loopjumpbackaddr);
+	globalset(inst_next, loopstackdepth);
 	# Reset the addresses for this instruction - no looping should happen on this instruction, only the next one.
 	hasloopcheck = 0;
 	hasloopjumpback = 0;
 	loopskipaddr = 0;
 	loopjumpbackaddr = 0;
 ] {
-	st3 = saturated_reg0_5;
+	CurSt3 = saturated_reg0_5;
 }
 }
 
@@ -631,26 +653,29 @@ r_opp:reg0_5 is reg0_5 & saturated_reg0_5 [
 # with blocks don't seem to work for multi-token instructions
 r_opc:"BLOOP" is op5_8=0b011 & op8_16=0; imm16 {}
 @ifndef BLOOP_ONE_AFTER
-r_opp:reg0_5, Addr16 is reg0_5 & saturated_reg0_5 & op5_8=0b011 & op8_16=0; Addr16 & imm16
+r_opp:reg0_5, Addr16 is reg0_5 & saturated_reg0_5 & op5_8=0b011 & op8_16=0 & CurSt3; Addr16 & Addr16After & imm16
 @else
-r_opp:reg0_5, Addr16After is reg0_5 & saturated_reg0_5 & op5_8=0b011 & op8_16=0; Addr16 & Addr16After & imm16
+r_opp:reg0_5, Addr16After is reg0_5 & saturated_reg0_5 & op5_8=0b011 & op8_16=0 & CurSt3; Addr16 & Addr16After & imm16
 @endif
 [
 	hasloopcheck = 1;
 	hasloopjumpback = 1;
 	loopskipaddr = imm16 + 1;
 	loopjumpbackaddr = inst_start + 2;
+	globalset(Addr16After, loopstackdepth);
+	loopstackdepth = loopstackdepth + 1;
 	globalset(inst_next, hasloopcheck);
 	globalset(Addr16, hasloopjumpback);
 	globalset(inst_next, loopskipaddr);
 	globalset(Addr16, loopjumpbackaddr);
+	globalset(inst_next, loopstackdepth);
 	# Reset the addresses for this instruction - no looping should happen on this instruction, only the next one.
 	hasloopcheck = 0;
 	hasloopjumpback = 0;
 	loopskipaddr = 0;
 	loopjumpbackaddr = 0;
 ] {
-	st3 = saturated_reg0_5;
+	CurSt3 = saturated_reg0_5;
 }
 
 # 0000 0000 100d dddd iiii iiii iiii iiii
@@ -959,48 +984,54 @@ r_opp:ac8_11, SImm8 is SImm8 & ac8_11 & sign_extend_ac8_11_after {
 # 0001 0000 iiii iiii
 with : op8_16=0b00010000 {
 r_opc:"LOOPI" is epsilon {}
-r_opp:Imm8 is Imm8 [
+r_opp:Imm8 is Imm8 & CurSt3 & AfterLoopWrapper [
 	hasloopcheck = 1;
 	hasloopjumpback = 1;
 	loopskipaddr = inst_start + 2;
 	loopjumpbackaddr = inst_start + 1;
+	globalset(AfterLoopWrapper, loopstackdepth);
+	loopstackdepth = loopstackdepth + 1;
 	globalset(inst_next, hasloopcheck);
 	globalset(inst_next, hasloopjumpback);
 	globalset(inst_next, loopskipaddr);
 	globalset(inst_next, loopjumpbackaddr);
+	globalset(inst_next, loopstackdepth);
 	# Reset the addresses for this instruction - no looping should happen on this instruction, only the next one.
 	hasloopcheck = 0;
 	hasloopjumpback = 0;
 	loopskipaddr = 0;
 	loopjumpbackaddr = 0;
 ] {
-	st3 = Imm8;
+	CurSt3 = Imm8;
 }
 }
 
 # 0001 0001 iiii iiii aaaa aaaa aaaa aaaa
 r_opc:"BLOOPI" is op8_16=0b00010001; imm16 {}
 @ifndef BLOOP_ONE_AFTER
-r_opp:Imm8, Addr16 is Imm8 & op8_16=0b00010001; Addr16 & imm16
+r_opp:Imm8, Addr16 is Imm8 & op8_16=0b00010001 & CurSt3; Addr16 & Addr16After & imm16
 @else
-r_opp:Imm8, Addr16After is Imm8 & op8_16=0b00010001; Addr16 & Addr16After & imm16
+r_opp:Imm8, Addr16After is Imm8 & op8_16=0b00010001 & CurSt3; Addr16 & Addr16After & imm16
 @endif
 [
 	hasloopcheck = 1;
 	hasloopjumpback = 1;
 	loopskipaddr = imm16 + 1;
 	loopjumpbackaddr = inst_start + 2;
+	globalset(Addr16After, loopstackdepth);
+	loopstackdepth = loopstackdepth + 1;
 	globalset(inst_next, hasloopcheck);
 	globalset(Addr16, hasloopjumpback);
 	globalset(inst_next, loopskipaddr);
 	globalset(Addr16, loopjumpbackaddr);
+	globalset(inst_next, loopstackdepth);
 	# Reset the addresses for this instruction - no looping should happen on this instruction, only the next one.
 	hasloopcheck = 0;
 	hasloopjumpback = 0;
 	loopskipaddr = 0;
 	loopjumpbackaddr = 0;
 ] {
-	st3 = Imm8;
+	CurSt3 = Imm8;
 }
 
 # 0001 0010 xxxx xiii
@@ -2142,9 +2173,9 @@ LoopSkipAddrWrapper: " ->"^loopskipaddr is loopskipaddr { export *[inst]:2 loops
 LoopJumpBackAddrWrapper: " =>"^loopjumpbackaddr is loopjumpbackaddr { export *[inst]:2 loopjumpbackaddr; }
 
 loopcheck:"" is hasloopcheck=0 {}
-loopcheck:LoopSkipAddrWrapper is hasloopcheck=1 & LoopSkipAddrWrapper {
-	if (st3 == 0) goto LoopSkipAddrWrapper;
-	st3 = st3 - 1;
+loopcheck:LoopSkipAddrWrapper is hasloopcheck=1 & LoopSkipAddrWrapper & CurSt3 {
+	if (CurSt3 == 0) goto LoopSkipAddrWrapper;
+	CurSt3 = CurSt3 - 1;
 }
 loopjumpback:"" is hasloopjumpback=0 {}
 loopjumpback:LoopJumpBackAddrWrapper is hasloopjumpback=1 & LoopJumpBackAddrWrapper {
