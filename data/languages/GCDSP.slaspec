@@ -1693,7 +1693,9 @@ a_opp:aax0lh4, aax1lh3 is aax1lh3 & aax0lh4 & aaxh3 {
 with : aop0_3=0b001 & aop4_8=0b1010 {
 a_opc:"ABS" is epsilon {}
 a_opp:aacf3 is aacf3 {
-	aacf3 = abs(aacf3);
+	if (aacf3 s>= 0) goto <nonnegative>;
+	aacf3 = -aacf3;
+	<nonnegative>
 	FLAGS40(aacf3);
 }
 }
