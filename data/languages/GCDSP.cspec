@@ -7,9 +7,21 @@
   </global>
   <stackpointer register="st0" space="inst" growth="negative"/>
   <default_proto>
-    <prototype name="__stdcall" extrapop="0" stackshift="0">
+    <prototype name="__stdcall" extrapop="0" stackshift="0" strategy="register">
       <input>
         <!-- This is a guess -->
+        <pentry minsize="2" maxsize="2" metatype="ptr">
+          <register name="ar0"/>
+        </pentry>
+        <pentry minsize="2" maxsize="2" metatype="ptr">
+          <register name="ar1"/>
+        </pentry>
+        <pentry minsize="2" maxsize="2" metatype="ptr">
+          <register name="ar2"/>
+        </pentry>
+        <pentry minsize="2" maxsize="2" metatype="ptr">
+          <register name="ar3"/>
+        </pentry>
         <pentry minsize="5" maxsize="5">
           <register name="acc0"/>
         </pentry>
@@ -21,36 +33,6 @@
         </pentry>
         <pentry minsize="4" maxsize="4">
           <register name="ax1"/>
-        </pentry>
-        <pentry minsize="3" maxsize="3">
-          <register name="acs0"/>
-        </pentry>
-        <pentry minsize="3" maxsize="3">
-          <register name="acs1"/>
-        </pentry>
-        <pentry minsize="2" maxsize="2" metatype="pointer">
-          <register name="ar0"/>
-        </pentry>
-        <pentry minsize="2" maxsize="2" metatype="pointer">
-          <register name="ar1"/>
-        </pentry>
-        <pentry minsize="2" maxsize="2" metatype="pointer">
-          <register name="ar2"/>
-        </pentry>
-        <pentry minsize="2" maxsize="2" metatype="pointer">
-          <register name="ar3"/>
-        </pentry>
-        <pentry minsize="2" maxsize="2">
-          <register name="ac0.m"/>
-        </pentry>
-        <pentry minsize="2" maxsize="2">
-          <register name="ac1.m"/>
-        </pentry>
-        <pentry minsize="2" maxsize="2">
-          <register name="ax0.l"/>
-        </pentry>
-        <pentry minsize="2" maxsize="2">
-          <register name="ax1.l"/>
         </pentry>
       </input>
       <output>
