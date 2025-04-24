@@ -333,7 +333,7 @@ attach variables srbit [ SR_LOGIC_ZERO_ SR_OVERFLOW_STICKY_ SR_100_ SR_INT_ENABL
 # are merged later, which could be used for implementing this.
 #
 # Unfortunately, the two-separate-bytes model is not accurate, as arithmetic
-# instructions with an opcode starting with 3 actually use 9 bytes, leaving
+# instructions with an opcode starting with 3 actually use 9 bits, leaving
 # the remaining 7 for extension instructions.  Thus, a single merged token
 # is used instead.
 define token axopbyte (16)
