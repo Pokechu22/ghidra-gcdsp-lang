@@ -53,7 +53,7 @@
     <!-- Accelerator, etc. -->
     <symbol name="FORMAT" address="data:FFD1" /> <!-- Sample format -->
     <symbol name="ACUNK1" address="data:FFD2" /> <!-- Usually set to 3 -->
-    <symbol name="ACDATA1" address="data:FFD3" /> <!-- Used by Zelda ucode -->
+    <symbol name="ACDRAW" address="data:FFD3" /> <!-- Accelerator raw data -->
 
     <symbol name="ACSAH" address="data:FFD4" /> <!-- Accelerator start address H -->
     <symbol name="ACSAL" address="data:FFD5" /> <!-- Accelerator start address L -->
@@ -63,11 +63,11 @@
     <symbol name="ACCAL" address="data:FFD9" /> <!-- Accelerator current address L -->
 
     <symbol name="PRED_SCALE" address="data:FFDA" /> <!-- ADPCM predictor and scale -->
-    <symbol name="YN1" address="data:FFDB" />
-    <symbol name="YN2" address="data:FFDC" />
-    <symbol name="ACDAT" address="data:FFDD" /> <!-- Accelerator data -->
+    <symbol name="YN1" address="data:FFDB" /> <!-- ADPCM output history Y[N - 1] -->
+    <symbol name="YN2" address="data:FFDC" /> <!-- ADPCM output history Y[N - 2] -->
+    <symbol name="ACDSAMP" address="data:FFDD" /> <!-- Accelerator processed sample -->
     <symbol name="GAIN" address="data:FFDE" />
-    <symbol name="ACUNK2" address="data:FFDF" /> <!-- Usually set to 0xc -->
+    <symbol name="ACIN" address="data:FFDF" /> <!-- Accelerator input -->
 
     <symbol name="AMDM" address="data:FFEF" /> <!-- ARAM DMA Request Mask 0: DMA with ARAM unmasked 1: masked -->
 
